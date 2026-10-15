@@ -1,0 +1,1893 @@
+--[[ NEXORA GUI v3.1 | ส่วน 1/9 | ธีมแดงดำ ]]
+
+local DEV_NAME = "NEXORA Team"
+local VERSION  = "v3.1"
+
+local Players         = game:GetService("Players")
+local TweenService    = game:GetService("TweenService")
+local RunService      = game:GetService("RunService")
+local UIS             = game:GetService("UserInputService")
+local Market          = game:GetService("MarketplaceService")
+local Debris          = game:GetService("Debris")
+local CoreGui         = game:GetService("CoreGui")
+local Lighting        = game:GetService("Lighting")
+local VirtualUser     = game:GetService("VirtualUser")
+local TeleportService = game:GetService("TeleportService")
+local StarterGui      = game:GetService("StarterGui")
+local HttpService     = game:GetService("HttpService")
+local StatsSvc        = game:GetService("Stats")
+
+local lp = Players.LocalPlayer
+local isMobile = UIS.TouchEnabled and not UIS.KeyboardEnabled
+
+-- ป้องกันการรันซ้ำ
+do
+    local places = {}
+    pcall(function() if gethui then table.insert(places, gethui()) end end)
+    table.insert(places, CoreGui)
+    local pg = lp:FindFirstChild("PlayerGui")
+    if pg then table.insert(places, pg) end
+    for _, p in ipairs(places) do
+        local ok, found = pcall(function() return p:FindFirstChild("NEXORA_GUI") end)
+        if ok and found then
+            pcall(function()
+                StarterGui:SetCore("SendNotification", {Title = "NEXORA", Text = "สคริปต์รันอยู่แล้ว / Already running", Duration = 4})
+            end)
+            return
+        end
+    end
+end
+
+-- สี
+local RED    = Color3.fromRGB(255, 35, 55)
+local DARK   = Color3.fromRGB(10, 10, 13)
+local PANEL  = Color3.fromRGB(22, 22, 28)
+local PANEL2 = Color3.fromRGB(36, 36, 44)
+local TEXT   = Color3.fromRGB(245, 245, 250)
+local SUB    = Color3.fromRGB(165, 165, 175)
+local GRAD_IDLE   = ColorSequence.new(Color3.fromRGB(52, 10, 16), Color3.fromRGB(14, 14, 18))
+local GRAD_ACTIVE = ColorSequence.new(Color3.fromRGB(215, 25, 45), Color3.fromRGB(60, 8, 15))
+
+local reduceAnim = false
+
+-- ภาษา
+local lang = "th"
+local T = {
+    th = {
+        loading="กำลังโหลดสคริปต์...", l1="เตรียมระบบ", l2="โหลดโมดูล", l3="สร้างหน้าต่าง", l4="พร้อมใช้งาน!",
+        home="หน้าหลัก", esp="ESP", auto="ออโต้", radar="เรดาร์ตรวจจับ", stats="สถิติ", move="การเคลื่อนที่",
+        automation="อัตโนมัติ", visual="ภาพ", stance="ท่าทาง", settings="ตั้งค่า",
+        map="แมพ", fps="เฟรมเรต", hp="เลือด",
+        -- ESP
+        espnote="ESP แต่ละอย่างเปิด/ปิดแยกกันอิสระ", esp_p_hl="ผู้เล่น: ไฮไลต์ตัว", esp_p_name="ผู้เล่น: แสดงชื่อ",
+        esp_p_dist="ผู้เล่น: แสดงระยะทาง", esp_p_hp="ผู้เล่น: แสดงเลือด", esp_d_hl="เพื่อนที่ล้ม: ไฮไลต์",
+        esp_b_hl="โรบอท: ไฮไลต์", esp_b_name="โรบอท: แสดงชื่อ", esp_b_dist="โรบอท: แสดงระยะทาง",
+        esprange="ระยะผู้เล่น (m)", espbrange="ระยะโรบอท (m)", espfar="โรบอทไกลสุด ไม่แลค",
+        espcolorp="สีผู้เล่น (กดเพื่อเปลี่ยน)", espcolorb="สีโรบอท (กดเพื่อเปลี่ยน)",
+        -- ออโต้
+        autocarry="ออโต้อุ้ม", autorevive="ออโต้ชุบ", autosafe="อุ้มไปที่ปลอดภัยแล้วค่อยชุบ",
+        mark="แสดงตำแหน่งเพื่อนที่ล้ม", markdist="แสดงระยะห่างจากเพื่อน", arrow="แสดงลูกศรไปหาเพื่อน",
+        alert="แจ้งเตือนเมื่อเพื่อนต้องการความช่วยเหลือ", radarfriends="แสดงตำแหน่งเพื่อนบนเรดาร์",
+        prio="ลำดับเพื่อนที่ควรไปช่วย", alive="เพื่อนที่ยังมีชีวิต", teamstat="สถานะทีม",
+        helps="ช่วยเพื่อน (ครั้ง)", helpok="ช่วยสำเร็จ (ครั้ง)", helptime="เวลาช่วยเหลือล่าสุด",
+        savestats="บันทึกสถิติลงไฟล์", nofire="Executor ไม่รองรับ fireproximityprompt (จะวาร์ป/เดินไปหาเพื่อนอย่างเดียว)",
+        needhelp="เพื่อนต้องการความช่วยเหลือ", nobody="ไม่มีเพื่อนที่ล้ม", nearest="เพื่อนที่ล้มใกล้สุด",
+        revive1s="ชุบ 1 วิ (วาร์ปหาเพื่อนที่ล้มใกล้สุด)", autowarp="ออโต้: วาร์ปไปหาเพื่อนที่ล้มใกล้สุด",
+        warpback="กลับที่เดิมหลังชุบ", noprompt="วาร์ปไปแล้ว แต่ไม่พบปุ่มชุบที่ตัวเพื่อน",
+        revived="ชุบสำเร็จ", revtry="ส่งคำสั่งชุบแล้ว",
+        -- เรดาร์
+        radaron="เปิดเรดาร์บนจอ", radarrange="ระยะเรดาร์ (studs)", radarbots="แสดงโรบอทบนเรดาร์",
+        -- สถิติ
+        survive="เวลารอดชีวิต (ชีวิตนี้)", best="เวลารอดชีวิตสูงสุด", rounds="จำนวนรอบ", uptime="เวลาที่ใช้งานสคริปต์",
+        summary="แสดงสรุปผลแต่ละรอบ", statshud="แสดงสถิติการเล่น (บนจอ)", resetstats="รีเซ็ตสถิติ",
+        roundsum="สรุปรอบ", srv="รอด", sh="ช่วย", sok="สำเร็จ", statsreset="รีเซ็ตสถิติแล้ว",
+        -- ภาพ
+        fov="มุมมองกล้อง (FOV)", zoom="ระยะซูมกล้องสูงสุด", bright="ความสว่าง", lessfx="ลดเอฟเฟกต์ภาพ",
+        saver="โหมดประหยัดทรัพยากร", ultra="เอฟเฟกต์ภาพสวยสุด", hudping="แสดงค่า Ping",
+        hudplayers="แสดงจำนวนผู้เล่น", hudtime="แสดงเวลาในรอบ", xhair="เป้าเล็ง", xh0="ปิด", xh1="จุด",
+        xh2="กากบาท", xh3="วงกลม", xhsize="ขนาดเป้าเล็ง", guialpha="ความโปร่งใส GUI (%)",
+        reduceanim="ลดเอฟเฟกต์แอนิเมชัน", hidenon="ซ่อนองค์ประกอบที่ไม่จำเป็น",
+        pingl="Ping", plrl="ผู้เล่น", timel="เวลา",
+        -- ตั้งค่า
+        sound="เสียงกดปุ่ม", volume="ความดังเสียง", compact="โหมดกะทัดรัด (มือถือ)", notif="แจ้งเตือน",
+        guisize="ขนาด GUI (%)", antiafk="กันหลุด (Anti-AFK)", fpsboost="ลดกราฟิก (FPS Boost)",
+        rejoin="เข้าเซิร์ฟใหม่", resetchar="รีเซ็ตตัวละคร", copyjob="คัดลอก Job ID",
+        copied="คัดลอกแล้ว", copyfail="คัดลอกไม่ได้ในอุปกรณ์นี้", rejoining="กำลังเข้าเซิร์ฟใหม่...",
+        keybind="กด RightShift เพื่อซ่อน/แสดง GUI", destroy="ปิดสคริปต์",
+        dev="ผู้พัฒนา", on="เปิด", off="ปิด", welcome="ยินดีต้อนรับสู่ NEXORA",
+        langchanged="เปลี่ยนเป็นภาษาไทยแล้ว", empty="ยังไม่มีฟังก์ชันในหมวดนี้",
+    },
+    en = {
+        loading="Loading script...", l1="Preparing", l2="Loading modules", l3="Building window", l4="Ready!",
+        home="Home", esp="ESP", auto="Auto", radar="Radar", stats="Stats", move="Movement",
+        automation="Automation", visual="Visual", stance="Stance", settings="Settings",
+        map="Map", fps="FPS", hp="Health",
+        espnote="Each ESP option toggles independently", esp_p_hl="Players: Highlight", esp_p_name="Players: Name",
+        esp_p_dist="Players: Distance", esp_p_hp="Players: Health", esp_d_hl="Downed friends: Highlight",
+        esp_b_hl="Bots: Highlight", esp_b_name="Bots: Name", esp_b_dist="Bots: Distance",
+        esprange="Player Range (m)", espbrange="Bot Range (m)", espfar="Max Bot Range (No Lag)",
+        espcolorp="Player Color (tap)", espcolorb="Bot Color (tap)",
+        autocarry="Auto Carry", autorevive="Auto Revive", autosafe="Carry to Safe Spot then Revive",
+        mark="Show Downed Friend Marker", markdist="Show Distance to Friends", arrow="Arrow to Friend",
+        alert="Alert When Friend Needs Help", radarfriends="Show Friends on Radar",
+        prio="Friends to Help (Priority)", alive="Friends Alive", teamstat="Team Status",
+        helps="Helps (times)", helpok="Successful Helps", helptime="Last Help Time",
+        savestats="Save Stats to File", nofire="Executor lacks fireproximityprompt (will only warp/walk to friends)",
+        needhelp="Friend needs help", nobody="No downed friends", nearest="Nearest Downed Friend",
+        revive1s="Revive in 1s (Warp to Nearest Downed)", autowarp="Auto: Warp to Nearest Downed Friend",
+        warpback="Return to Spot After Revive", noprompt="Warped, but no revive prompt found",
+        revived="Revived", revtry="Revive sent",
+        radaron="Show Radar on Screen", radarrange="Radar Range (studs)", radarbots="Show Bots on Radar",
+        survive="Survival Time (this life)", best="Best Survival Time", rounds="Rounds", uptime="Script Uptime",
+        summary="Show Round Summary", statshud="Show Play Stats (HUD)", resetstats="Reset Stats",
+        roundsum="Round Summary", srv="Survived", sh="Helps", sok="Success", statsreset="Stats reset",
+        fov="Camera FOV", zoom="Max Camera Zoom", bright="Brightness", lessfx="Reduce Visual Effects",
+        saver="Resource Saver Mode", ultra="Ultra Visual Effects", hudping="Show Ping",
+        hudplayers="Show Player Count", hudtime="Show Round Time", xhair="Crosshair", xh0="Off", xh1="Dot",
+        xh2="Cross", xh3="Circle", xhsize="Crosshair Size", guialpha="GUI Transparency (%)",
+        reduceanim="Reduce Animations", hidenon="Hide Non-essential Elements",
+        pingl="Ping", plrl="Players", timel="Time",
+        sound="Click Sound", volume="Volume", compact="Compact Mode (Mobile)", notif="Notifications",
+        guisize="GUI Size (%)", antiafk="Anti-AFK", fpsboost="FPS Boost (Low Graphics)",
+        rejoin="Rejoin Server", resetchar="Reset Character", copyjob="Copy Job ID",
+        copied="Copied", copyfail="Copy not supported on this device", rejoining="Rejoining...",
+        keybind="Press RightShift to hide/show GUI", destroy="Close Script",
+        dev="Developer", on="ON", off="OFF", welcome="Welcome to NEXORA",
+        langchanged="Language set to English", empty="No functions in this category yet",
+    },
+}
+local function L(k) return T[lang][k] or k end
+local reg, langListeners = {}, {}
+local function track(o, k, prefix) reg[#reg+1] = {o, k, prefix or ""} end
+local function setLang(l)
+    lang = l
+    for _, r in ipairs(reg) do
+        if r[1] and r[1].Parent then r[1].Text = r[3] .. L(r[2]) end
+    end
+    for _, f in ipairs(langListeners) do pcall(f) end
+end
+
+-- ตัวช่วย
+local function new(c, p)
+    local o = Instance.new(c)
+    for k, v in pairs(p) do if k ~= "Parent" then o[k] = v end end
+    if p.Parent then o.Parent = p.Parent end
+    return o
+end
+local function corner(o, r) return new("UICorner", {CornerRadius = UDim.new(0, r), Parent = o}) end
+local glows = {}
+local function stroke(o, th, glow)
+    local s = new("UIStroke", {Color = RED, Thickness = th or 1.5, Transparency = 0.3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = o})
+    if glow then glows[#glows+1] = s end
+    return s
+end
+local function tw(o, t, props, style, dir)
+    local tween = TweenService:Create(o, TweenInfo.new(reduceAnim and 0.01 or t, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props)
+    tween:Play()
+    return tween
+end
+
+-- GUI หลัก
+local gui = new("ScreenGui", {Name = "NEXORA_GUI", ResetOnSpawn = false, IgnoreGuiInset = true, ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = 999})
+do
+    local ok = pcall(function() gui.Parent = (gethui and gethui()) or CoreGui end)
+    if not ok or not gui.Parent then gui.Parent = lp:WaitForChild("PlayerGui") end
+end
+
+local conns = {}
+local function connect(sig, fn) local c = sig:Connect(fn); conns[#conns+1] = c; return c end
+
+-- เสียงกดปุ่ม
+local soundOn, notifOn, soundVol = true, true, 0.6
+local function click()
+    if not soundOn then return end
+    local s = new("Sound", {SoundId = "rbxassetid://6895079853", Volume = soundVol, Parent = gui})
+    s:Play()
+    Debris:AddItem(s, 2)
+end-- ===== ส่วน 2/9 : โลโก้แมว / แจ้งเตือน / หน้าโหลด / ตัวช่วย =====
+
+local function CatLogo(parent, size, pos, anchor)
+    local f = new("Frame", {Size = UDim2.fromOffset(size, size), Position = pos or UDim2.new(), AnchorPoint = anchor or Vector2.new(), BackgroundTransparency = 1, Parent = parent})
+    local earL = new("Frame", {Size = UDim2.fromScale(.3, .3), Position = UDim2.fromScale(.12, .08), Rotation = 45, BackgroundColor3 = RED, Parent = f})
+    local earR = new("Frame", {Size = UDim2.fromScale(.3, .3), Position = UDim2.fromScale(.58, .08), Rotation = 45, BackgroundColor3 = RED, Parent = f})
+    corner(earL, size * 0.05); corner(earR, size * 0.05)
+    local head = new("Frame", {Size = UDim2.fromScale(.8, .66), Position = UDim2.fromScale(.1, .26), BackgroundColor3 = Color3.fromRGB(18, 18, 22), Parent = f})
+    corner(head, size * 0.28); stroke(head, math.max(1.5, size / 28), true)
+    local eyeL = new("Frame", {Size = UDim2.fromScale(.15, .2), Position = UDim2.fromScale(.26, .45), BackgroundColor3 = RED, Parent = f})
+    local eyeR = new("Frame", {Size = UDim2.fromScale(.15, .2), Position = UDim2.fromScale(.59, .45), BackgroundColor3 = RED, Parent = f})
+    corner(eyeL, 999); corner(eyeR, 999)
+    local nose = new("Frame", {Size = UDim2.fromScale(.08, .06), Position = UDim2.fromScale(.46, .68), BackgroundColor3 = Color3.fromRGB(255, 120, 130), Parent = f})
+    corner(nose, 999)
+    for i = -1, 1, 2 do
+        for j = 0, 1 do
+            new("Frame", {Size = UDim2.fromScale(.2, .012), Position = UDim2.fromScale(i == -1 and .06 or .74, .7 + j * .06), Rotation = i * (j == 0 and 8 or -8), BackgroundColor3 = SUB, BorderSizePixel = 0, Parent = f})
+        end
+    end
+    task.spawn(function()
+        local t = 0
+        while f.Parent do
+            t += 1
+            tw(earL, .15, {Rotation = 38}); tw(earR, .15, {Rotation = 52})
+            task.wait(.18)
+            tw(earL, .15, {Rotation = 45}); tw(earR, .15, {Rotation = 45})
+            task.wait(1.2)
+            if t % 2 == 0 then
+                tw(eyeL, .08, {Size = UDim2.fromScale(.15, .02), Position = UDim2.fromScale(.26, .54)})
+                tw(eyeR, .08, {Size = UDim2.fromScale(.15, .02), Position = UDim2.fromScale(.59, .54)})
+                task.wait(.12)
+                tw(eyeL, .08, {Size = UDim2.fromScale(.15, .2), Position = UDim2.fromScale(.26, .45)})
+                tw(eyeR, .08, {Size = UDim2.fromScale(.15, .2), Position = UDim2.fromScale(.59, .45)})
+            end
+            task.wait(1.4)
+        end
+    end)
+    return f
+end
+
+-- แจ้งเตือนป๊อปอัป
+local notifHolder = new("Frame", {Size = UDim2.new(0, 290, 1, -20), Position = UDim2.new(1, -300, 0, 10), BackgroundTransparency = 1, Parent = gui})
+new("UIListLayout", {Padding = UDim.new(0, 6), VerticalAlignment = Enum.VerticalAlignment.Top, HorizontalAlignment = Enum.HorizontalAlignment.Right, SortOrder = Enum.SortOrder.LayoutOrder, Parent = notifHolder})
+local function notify(title, text, dur, force)
+    if not notifOn and not force then return end
+    local slot = new("Frame", {Size = UDim2.new(1, 0, 0, 58), BackgroundTransparency = 1, Parent = notifHolder})
+    local card = new("Frame", {Size = UDim2.new(1, 0, 1, 0), Position = UDim2.new(1.2, 0, 0, 0), BackgroundColor3 = Color3.new(1, 1, 1), Parent = slot})
+    corner(card, 12); stroke(card, 1.8, true)
+    new("UIGradient", {Color = GRAD_IDLE, Parent = card})
+    new("TextLabel", {Size = UDim2.new(1, -16, 0, 22), Position = UDim2.fromOffset(12, 5), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = RED, TextXAlignment = Enum.TextXAlignment.Left, Text = "🐱 " .. title, Parent = card})
+    new("TextLabel", {Size = UDim2.new(1, -16, 0, 22), Position = UDim2.fromOffset(12, 29), BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 13, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, Text = text, Parent = card})
+    tw(card, .35, {Position = UDim2.new()}, Enum.EasingStyle.Back)
+    task.delay(dur or 2.5, function()
+        if not card.Parent then return end
+        tw(card, .3, {Position = UDim2.new(1.2, 0, 0, 0)}, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        task.wait(.35); slot:Destroy()
+    end)
+end
+
+-- หน้าต่างโหลดสคริปต์
+local function LoadingWindow()
+    local w = new("Frame", {Size = UDim2.fromOffset(340, 220), Position = UDim2.fromScale(.5, .5), AnchorPoint = Vector2.new(.5, .5), BackgroundColor3 = DARK, Parent = gui})
+    corner(w, 20); stroke(w, 2.2, true)
+    local sc = new("UIScale", {Scale = 0.01, Parent = w})
+    tw(sc, .45, {Scale = 1}, Enum.EasingStyle.Back)
+    CatLogo(w, 72, UDim2.new(.5, 0, 0, 14), Vector2.new(.5, 0))
+    new("TextLabel", {Size = UDim2.new(1, 0, 0, 30), Position = UDim2.fromOffset(0, 92), BackgroundTransparency = 1, Font = Enum.Font.GothamBlack, TextSize = 26, TextColor3 = RED, Text = "NEXORA", Parent = w})
+    local status = new("TextLabel", {Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, 126), BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 13, TextColor3 = SUB, Text = L("loading"), Parent = w})
+    local bar = new("Frame", {Size = UDim2.new(1, -60, 0, 10), Position = UDim2.fromOffset(30, 156), BackgroundColor3 = PANEL2, Parent = w})
+    corner(bar, 999)
+    local fill = new("Frame", {Size = UDim2.fromScale(0, 1), BackgroundColor3 = RED, Parent = bar})
+    corner(fill, 999)
+    new("TextLabel", {Size = UDim2.new(1, 0, 0, 16), Position = UDim2.fromOffset(0, 184), BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = SUB, Text = L("dev") .. ": " .. DEV_NAME, Parent = w})
+    for i, k in ipairs({"l1", "l2", "l3", "l4"}) do
+        status.Text = L(k)
+        tw(fill, .45, {Size = UDim2.fromScale(i / 4, 1)})
+        task.wait(.55)
+    end
+    tw(sc, .3, {Scale = 0.01}, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+    task.wait(.32)
+    w:Destroy()
+end
+
+-- ตัวอัปเดตข้อมูลสด / FPS / ตัวช่วย
+local live = {}
+local function Live(fn) live[#live+1] = fn end
+local fps, frames, last = 60, 0, tick()
+connect(RunService.RenderStepped, function()
+    frames += 1
+    local n = tick()
+    if n - last >= 0.5 then fps = math.floor(frames / (n - last)); frames = 0; last = n end
+end)
+local function hum() local c = lp.Character; return c and c:FindFirstChildOfClass("Humanoid") end
+local function fmt(s)
+    s = math.max(0, math.floor(s))
+    return string.format("%02d:%02d:%02d", s // 3600, s % 3600 // 60, s % 60)
+end
+local nonessential = {}   -- องค์ประกอบที่ซ่อนได้
+local restorers = {}      -- ฟังก์ชันคืนค่าตอนปิดสคริปต์-- ===== ส่วน 3/9 : หน้าต่างหลัก + ปุ่มสไตล์แดงดำ =====
+
+local baseScale = isMobile and 0.58 or 1
+local W, H = 960, 600
+-- แก้บั๊กจอดำ: ใช้ Frame ธรรมดา (เดิมเป็น CanvasGroup + UIGradient ทำให้ทุกอย่างข้างในดำ)
+local win = new("Frame", {Size = UDim2.fromOffset(W, H), Position = UDim2.fromScale(.5, .5), AnchorPoint = Vector2.new(.5, .5), BackgroundColor3 = Color3.new(1, 1, 1), ClipsDescendants = true, Visible = false, Parent = gui})
+corner(win, 22); stroke(win, 2.8, true)
+new("UIGradient", {Color = ColorSequence.new(Color3.fromRGB(26, 8, 12), Color3.fromRGB(9, 9, 12)), Rotation = 90, Parent = win})
+local winScale = new("UIScale", {Scale = 0.01, Parent = win})
+
+local bar = new("Frame", {Size = UDim2.new(1, 0, 0, 60), BackgroundColor3 = PANEL, Parent = win})
+corner(bar, 22)
+local barFill = new("Frame", {Size = UDim2.new(1, 0, 0, 22), Position = UDim2.new(0, 0, 1, -22), BackgroundColor3 = PANEL, BorderSizePixel = 0, Parent = bar})
+new("Frame", {Size = UDim2.new(1, 0, 0, 2), Position = UDim2.new(0, 0, 1, -2), BackgroundColor3 = RED, BorderSizePixel = 0, Parent = bar})
+CatLogo(bar, 44, UDim2.fromOffset(14, 8))
+new("TextLabel", {Size = UDim2.fromOffset(340, 60), Position = UDim2.fromOffset(68, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamBlack, TextSize = 25, TextColor3 = RED, TextXAlignment = Enum.TextXAlignment.Left, Text = "NEXORA  " .. VERSION, Parent = bar})
+
+local function barBtn(txt, x)
+    local b = new("TextButton", {Size = UDim2.fromOffset(42, 42), Position = UDim2.new(1, x, 0, 9), BackgroundColor3 = Color3.new(1, 1, 1), Text = "", AutoButtonColor = false, Parent = bar})
+    corner(b, 12); stroke(b, 1.8, true)
+    new("UIGradient", {Color = GRAD_IDLE, Rotation = 45, Parent = b})
+    local l = new("TextLabel", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 22, TextColor3 = TEXT, Text = txt, Parent = b})
+    connect(b.MouseEnter, function() tw(l, .15, {TextColor3 = RED}) end)
+    connect(b.MouseLeave, function() tw(l, .15, {TextColor3 = TEXT}) end)
+    return b
+end
+local btnMin = barBtn("–", -104)
+local btnClose = barBtn("✕", -56)
+
+do
+    local dragging, startPos, startMouse
+    connect(bar.InputBegan, function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging, startMouse, startPos = true, i.Position, win.Position
+        end
+    end)
+    connect(UIS.InputChanged, function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            local d = i.Position - startMouse
+            win.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+        end
+    end)
+    connect(UIS.InputEnded, function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end)
+end
+
+local side = new("ScrollingFrame", {Size = UDim2.new(0, 236, 1, -78), Position = UDim2.fromOffset(14, 68), BackgroundTransparency = 1, ScrollBarThickness = 3, ScrollBarImageColor3 = RED, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, Parent = win})
+new("UIListLayout", {Padding = UDim.new(0, 8), Parent = side})
+local content = new("Frame", {Size = UDim2.new(1, -278, 1, -78), Position = UDim2.fromOffset(264, 68), BackgroundTransparency = 1, ClipsDescendants = true, Parent = win})
+
+-- ปุ่มสไตล์แดงดำ: ไล่สี + แถบแดง + แสงวิ่ง + ริปเปิลตอนกด
+local function Styled(parent, h, callback, size, pos)
+    local b = new("TextButton", {Size = size or UDim2.new(1, -6, 0, h or 50), Position = pos or UDim2.new(), BackgroundColor3 = Color3.new(1, 1, 1), Text = "", AutoButtonColor = false, ClipsDescendants = true, Parent = parent})
+    corner(b, 12)
+    local grad = new("UIGradient", {Color = GRAD_IDLE, Rotation = 0, Parent = b})
+    local st = stroke(b, 1.8, true)
+    local accent = new("Frame", {Size = UDim2.new(0, 5, .6, 0), Position = UDim2.new(0, 9, .2, 0), BackgroundColor3 = RED, BorderSizePixel = 0, Parent = b})
+    corner(accent, 999)
+    local shine = new("Frame", {Size = UDim2.new(0, 30, 2, 0), Position = UDim2.new(0, -60, -.5, 0), Rotation = 20, BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = .88, BorderSizePixel = 0, Parent = b})
+    nonessential[#nonessential+1] = shine
+    local sc = new("UIScale", {Parent = b})
+    connect(b.MouseEnter, function()
+        tw(st, .15, {Thickness = 3.2})
+        tw(accent, .15, {Size = UDim2.new(0, 7, .8, 0), Position = UDim2.new(0, 9, .1, 0)})
+        shine.Position = UDim2.new(0, -60, -.5, 0)
+        tw(shine, .5, {Position = UDim2.new(1, 40, -.5, 0)})
+    end)
+    connect(b.MouseLeave, function()
+        tw(st, .15, {Thickness = 1.8})
+        tw(accent, .15, {Size = UDim2.new(0, 5, .6, 0), Position = UDim2.new(0, 9, .2, 0)})
+        tw(sc, .12, {Scale = 1})
+    end)
+    connect(b.MouseButton1Down, function(x, y)
+        click()
+        tw(sc, .08, {Scale = 0.95})
+        local s = winScale.Scale
+        local r = new("Frame", {AnchorPoint = Vector2.new(.5, .5), Position = UDim2.fromOffset((x - b.AbsolutePosition.X) / s, (y - b.AbsolutePosition.Y) / s), Size = UDim2.fromOffset(0, 0), BackgroundColor3 = RED, BackgroundTransparency = .4, Parent = b})
+        corner(r, 999)
+        tw(r, .5, {Size = UDim2.fromOffset(420, 420), BackgroundTransparency = 1})
+        Debris:AddItem(r, .55)
+    end)
+    connect(b.MouseButton1Up, function() tw(sc, .14, {Scale = 1}, Enum.EasingStyle.Back) end)
+    connect(b.MouseButton1Click, function() if callback then callback() end end)
+    return b, grad, accent
+end
+
+local function Button(parent, key, callback, prefix, h)
+    local b, grad = Styled(parent, h or 52, callback)
+    local lbl = new("TextLabel", {Size = UDim2.new(1, -30, 1, 0), Position = UDim2.fromOffset(28, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 19, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Left, Text = (prefix or "") .. L(key), Parent = b})
+    track(lbl, key, prefix)
+    return b, lbl, grad
+end
+
+-- สวิตช์: คืนค่า (ปุ่ม, ตัวตั้งค่าแบบไม่เรียก callback)
+local function Toggle(parent, key, default, callback)
+    local b = Styled(parent, 54)
+    local lbl = new("TextLabel", {Size = UDim2.new(1, -110, 1, 0), Position = UDim2.fromOffset(28, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true, Text = L(key), Parent = b})
+    track(lbl, key)
+    local rail = new("Frame", {Size = UDim2.fromOffset(58, 30), Position = UDim2.new(1, -74, .5, -15), BackgroundColor3 = PANEL2, Parent = b})
+    corner(rail, 999)
+    local knob = new("Frame", {Size = UDim2.fromOffset(26, 26), Position = UDim2.fromOffset(2, 2), BackgroundColor3 = TEXT, Parent = rail})
+    corner(knob, 999)
+    local on = default or false
+    local function render(anim)
+        local p = on and UDim2.fromOffset(30, 2) or UDim2.fromOffset(2, 2)
+        local c = on and RED or PANEL2
+        if anim then tw(knob, .18, {Position = p}, Enum.EasingStyle.Back); tw(rail, .18, {BackgroundColor3 = c})
+        else knob.Position = p; rail.BackgroundColor3 = c end
+    end
+    render(false)
+    connect(b.MouseButton1Click, function()
+        on = not on; render(true)
+        if callback then callback(on) end
+        notify(L(key), on and L("on") or L("off"), 1.6)
+    end)
+    return b, function(v) on = v; render(true) end
+end-- ===== ส่วน 4/9 : แถบเลื่อน / แถวสถิติ / เมนูภาษา / ระบบหน้า =====
+
+-- callback(ค่า, final) final=true ตอนปล่อยนิ้ว
+local function Slider(parent, key, min, max, def, callback)
+    local row = new("Frame", {Size = UDim2.new(1, -6, 0, 76), BackgroundColor3 = Color3.new(1, 1, 1), Parent = parent})
+    corner(row, 12); stroke(row, 1.6, true)
+    new("UIGradient", {Color = GRAD_IDLE, Parent = row})
+    local lbl = new("TextLabel", {Size = UDim2.new(1, -110, 0, 32), Position = UDim2.fromOffset(22, 6), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Left, Text = L(key), Parent = row})
+    track(lbl, key)
+    local val = new("TextLabel", {Size = UDim2.fromOffset(84, 32), Position = UDim2.new(1, -104, 0, 6), BackgroundTransparency = 1, Font = Enum.Font.GothamBlack, TextSize = 19, TextColor3 = RED, TextXAlignment = Enum.TextXAlignment.Right, Text = tostring(def), Parent = row})
+    local hitb = new("TextButton", {Size = UDim2.new(1, -44, 0, 30), Position = UDim2.fromOffset(22, 40), BackgroundTransparency = 1, Text = "", Parent = row})
+    local rail = new("Frame", {Size = UDim2.new(1, 0, 0, 10), Position = UDim2.new(0, 0, .5, -5), BackgroundColor3 = PANEL2, Parent = hitb})
+    corner(rail, 999)
+    local fill = new("Frame", {Size = UDim2.fromScale(math.clamp((def - min) / (max - min), 0, 1), 1), BackgroundColor3 = RED, Parent = rail})
+    corner(fill, 999)
+    local dragging, lastV = false, def
+    local function set(x)
+        local a = math.clamp((x - rail.AbsolutePosition.X) / rail.AbsoluteSize.X, 0, 1)
+        lastV = math.floor(min + (max - min) * a + 0.5)
+        fill.Size = UDim2.fromScale(a, 1); val.Text = tostring(lastV)
+        if callback then callback(lastV, false) end
+    end
+    connect(hitb.InputBegan, function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true; click(); set(i.Position.X) end
+    end)
+    connect(UIS.InputChanged, function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then set(i.Position.X) end
+    end)
+    connect(UIS.InputEnded, function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then
+            dragging = false
+            if callback then callback(lastV, true) end
+        end
+    end)
+    return row
+end
+
+local function StatRow(parent, key, getter)
+    local row = new("Frame", {Size = UDim2.new(1, -6, 0, 50), BackgroundColor3 = Color3.new(1, 1, 1), Parent = parent})
+    corner(row, 12); stroke(row, 1.5, true)
+    new("UIGradient", {Color = GRAD_IDLE, Parent = row})
+    local lbl = new("TextLabel", {Size = UDim2.new(.55, 0, 1, 0), Position = UDim2.fromOffset(22, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 17, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true, Text = L(key), Parent = row})
+    track(lbl, key)
+    local v = new("TextLabel", {Size = UDim2.new(.45, -22, 1, 0), Position = UDim2.fromScale(.55, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamBlack, TextSize = 18, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Right, Text = "-", Parent = row})
+    Live(function() v.Text = tostring(getter()) end)
+    return row
+end
+
+-- ปุ่มวนตัวเลือก (กดแล้วเปลี่ยนค่า)
+local function Cycle(parent, getText, onClick)
+    local lbl, refresh
+    local b = Styled(parent, 54, function() onClick(); if refresh then refresh() end end)
+    lbl = new("TextLabel", {Size = UDim2.new(1, -30, 1, 0), Position = UDim2.fromOffset(28, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Left, Text = "", Parent = b})
+    refresh = function() lbl.Text = getText() end
+    langListeners[#langListeners+1] = refresh
+    refresh()
+    return b, refresh
+end
+
+-- ตัวเลือกภาษา: ภาษา / Language -> ไทย | England
+local function LangPicker(parent)
+    local box = new("Frame", {Size = UDim2.new(1, -6, 0, 120), BackgroundTransparency = 1, Parent = parent})
+    new("TextLabel", {Size = UDim2.new(1, 0, 0, 32), BackgroundTransparency = 1, Font = Enum.Font.GothamBlack, TextSize = 20, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Left, Text = "🌐  ภาษา / Language", Parent = box})
+    local items = {}
+    local function mk(txt, code, x)
+        local b, grad, accent = Styled(box, 60, function() setLang(code); notify("NEXORA", L("langchanged"), 2) end, UDim2.new(.5, -5, 0, 60), UDim2.new(x, x == 0 and 0 or 5, 0, 46))
+        accent.Visible = false
+        new("TextLabel", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Font = Enum.Font.GothamBlack, TextSize = 23, TextColor3 = TEXT, Text = txt, ZIndex = 5, Parent = b})
+        items[#items+1] = {code = code, grad = grad}
+    end
+    mk("ไทย", "th", 0)
+    mk("England", "en", .5)
+    local function refresh()
+        for _, it in ipairs(items) do it.grad.Color = (lang == it.code) and GRAD_ACTIVE or GRAD_IDLE end
+    end
+    langListeners[#langListeners+1] = refresh
+    refresh()
+    return box
+end
+
+-- ระบบหน้า + แท็บ
+local pages, tabGrads = {}, {}
+local function NewPage()
+    local p = new("ScrollingFrame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ScrollBarThickness = 3, ScrollBarImageColor3 = RED, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, Visible = false, Parent = content})
+    new("UIListLayout", {Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder, Parent = p})
+    new("UIPadding", {PaddingTop = UDim.new(0, 3), PaddingLeft = UDim.new(0, 3), PaddingBottom = UDim.new(0, 12), Parent = p})
+    return p
+end
+local current
+local function Select(i)
+    if current == i then return end
+    current = i
+    for idx, p in pairs(pages) do
+        p.Visible = (idx == i)
+        tabGrads[idx].Color = (idx == i) and GRAD_ACTIVE or GRAD_IDLE
+    end
+    local p = pages[i]
+    p.Position = UDim2.fromOffset(0, 18)
+    tw(p, .28, {Position = UDim2.new()}, Enum.EasingStyle.Quint)
+end
+local function AddTab(i, icon, key)
+    local b, lbl, grad = Button(side, key, function() Select(i) end, icon .. "  ", 58)
+    tabGrads[i] = grad
+    pages[i] = NewPage()
+    return pages[i]
+end
+local function Empty(page)
+    local l = new("TextLabel", {Size = UDim2.new(1, -6, 0, 80), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 18, TextColor3 = SUB, Text = "🐱  " .. L("empty"), Parent = page})
+    track(l, "empty", "🐱  ")
+end-- ===== ส่วน 5/10 : แกนหลัก (ตรวจจับเพื่อนล้ม / โรบอท / สถิติ) + หน้าหลัก =====
+
+local FLAGS = {alert = false, summary = true, saveOn = true, statshud = false, mark = false, markdist = false, arrow = false}
+local DOWNED_ATTRS = {"Downed", "downed", "Knocked", "KnockedOut", "IsDowned", "Incapacitated"}
+
+local function hasDownFlag(inst)
+    if not inst then return false end
+    for _, a in ipairs(DOWNED_ATTRS) do
+        if inst:GetAttribute(a) == true then return true end
+    end
+    for k, v in pairs(inst:GetAttributes()) do
+        local n = k:lower()
+        if v == true and (n:find("down", 1, true) or n:find("knock", 1, true)) then return true end
+    end
+    return false
+end
+local function isDowned(plr)
+    local ch = plr.Character
+    if not ch then return false end
+    if hasDownFlag(ch) or hasDownFlag(plr) then return true end
+    local h = ch:FindFirstChildOfClass("Humanoid")
+    if h and hasDownFlag(h) then return true end
+    for _, n in ipairs({"Downed", "IsDowned", "Knocked"}) do
+        local v = ch:FindFirstChild(n)
+        if v and v:IsA("BoolValue") and v.Value then return true end
+    end
+    return false
+end
+local function myRoot() local c = lp.Character; return c and c:FindFirstChild("HumanoidRootPart") end
+
+local bots = {}
+local function tryAddBot(inst)
+    local mdl
+    if inst:IsA("Humanoid") then
+        mdl = inst.Parent
+    elseif inst:IsA("Model") and inst.Name:lower():find("bot", 1, true) then
+        mdl = inst
+    end
+    if mdl and mdl:IsA("Model") and not Players:GetPlayerFromCharacter(mdl) then
+        local r = mdl:FindFirstChild("HumanoidRootPart") or mdl.PrimaryPart or mdl:FindFirstChildWhichIsA("BasePart")
+        if r then bots[mdl] = r end
+    end
+end
+for _, d in ipairs(workspace:GetDescendants()) do tryAddBot(d) end
+connect(workspace.DescendantAdded, tryAddBot)
+connect(workspace.DescendantRemoving, function(i) if bots[i] then bots[i] = nil end end)
+
+local function nearestBot(pos)
+    local best, bp
+    for mdl, r in pairs(bots) do
+        if mdl.Parent and r.Parent and not Players:GetPlayerFromCharacter(mdl) then
+            local d = (r.Position - pos).Magnitude
+            if not best or d < best then best, bp = d, r.Position end
+        else
+            bots[mdl] = nil
+        end
+    end
+    return best, bp
+end
+
+-- สถิติ
+local S = {start = tick(), lifeStart = tick(), lifeEnd = nil, dead = false, rounds = 0, helps = 0, helpOk = 0,
+           rHelps = 0, rOk = 0, best = 0, lastHelp = nil, helpSum = 0}
+local SAVE = "NEXORA_stats.json"
+pcall(function()
+    if isfile and isfile(SAVE) then
+        local d = HttpService:JSONDecode(readfile(SAVE))
+        S.best = d.best or 0; S.rounds = d.rounds or 0; S.helps = d.helps or 0; S.helpOk = d.helpOk or 0
+    end
+end)
+local function saveStats()
+    if not FLAGS.saveOn then return end
+    pcall(function()
+        if writefile then
+            writefile(SAVE, HttpService:JSONEncode({best = S.best, rounds = S.rounds, helps = S.helps, helpOk = S.helpOk}))
+        end
+    end)
+end
+local function surviveTime() return (S.dead and S.lifeEnd or tick()) - S.lifeStart end
+
+local function endLife()
+    if S.dead then return end
+    S.dead = true; S.lifeEnd = tick()
+    local t = S.lifeEnd - S.lifeStart
+    if t > S.best then S.best = t end
+    if FLAGS.summary then
+        notify(L("roundsum"), L("srv") .. " " .. fmt(t) .. " | " .. L("sh") .. " " .. S.rHelps .. " | " .. L("sok") .. " " .. S.rOk, 5, true)
+    end
+    saveStats()
+end
+local function hookChar(ch)
+    S.rounds += 1; S.lifeStart = tick(); S.lifeEnd = nil; S.dead = false; S.rHelps = 0; S.rOk = 0
+    local h = ch:WaitForChild("Humanoid", 5)
+    if h then connect(h.Died, endLife) end
+end
+connect(lp.CharacterRemoving, endLife)
+connect(lp.CharacterAdded, hookChar)
+if lp.Character then task.spawn(hookChar, lp.Character) end
+
+-- สถานะโลก
+local WS = {downed = {}, alive = 0, dn = 0}
+local episodes = {}
+connect(Players.PlayerRemoving, function(p) episodes[p] = nil end)
+
+local function worldStep()
+    local m = myRoot()
+    local now = tick()
+    local downed, alive, dn = {}, 0, 0
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= lp then
+            local ch = p.Character
+            local h = ch and ch:FindFirstChildOfClass("Humanoid")
+            local r = ch and ch:FindFirstChild("HumanoidRootPart")
+            if h and r and (h.Health > 0 or isDowned(p)) then
+                if isDowned(p) then
+                    dn += 1
+                    local d = m and (m.Position - r.Position).Magnitude or 0
+                    local bd = nearestBot(r.Position)
+                    downed[#downed+1] = {plr = p, root = r, dist = d, score = d + ((bd and bd < 60) and 200 or 0)}
+                    local ep = episodes[p]
+                    if not ep then
+                        ep = {t0 = now, att = false}
+                        episodes[p] = ep
+                        if FLAGS.alert then notify(L("needhelp"), p.DisplayName, 3, true) end
+                    end
+                    if m and d <= 12 and not ep.att then ep.att = true; S.helps += 1; S.rHelps += 1 end
+                else
+                    alive += 1
+                    local ep = episodes[p]
+                    if ep then
+                        if ep.att then
+                            S.helpOk += 1; S.rOk += 1
+                            local dt = now - ep.t0
+                            S.lastHelp = dt; S.helpSum += dt
+                        end
+                        episodes[p] = nil
+                    end
+                end
+            else
+                episodes[p] = nil
+            end
+        end
+    end
+    table.sort(downed, function(a, b) return a.score < b.score end)
+    WS.downed, WS.alive, WS.dn = downed, alive, dn
+end
+task.spawn(function()
+    while gui.Parent do
+        pcall(worldStep)
+        task.wait(0.15)
+    end
+end)
+
+local function nearestDowned()
+    local m = myRoot()
+    local best, bd
+    for _, e in ipairs(WS.downed) do
+        if e.root and e.root.Parent and e.plr.Parent then
+            local d = m and (m.Position - e.root.Position).Magnitude or e.dist
+            if not bd or d < bd then best, bd = e, d end
+        end
+    end
+    return best, bd
+end
+
+local function warpTo(root)
+    local m = myRoot()
+    if not m or not root or not root.Parent then return false end
+    local ok = pcall(function()
+        m.CFrame = CFrame.new(root.Position + Vector3.new(2, 2.5, 0))
+        m.AssemblyLinearVelocity = Vector3.zero
+        m.AssemblyAngularVelocity = Vector3.zero
+    end)
+    return ok
+end
+
+-- เปิด/ปิดหน้าต่าง
+local isOpen, busy = false, false
+local function showWin()
+    if busy then return end
+    busy = true; isOpen = true
+    win.Visible = true
+    tw(winScale, .45, {Scale = baseScale}, Enum.EasingStyle.Back)
+    task.delay(.46, function() busy = false end)
+end
+local function hideWin()
+    if busy then return end
+    busy = true; isOpen = false
+    tw(winScale, .3, {Scale = 0.01}, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+    task.delay(.31, function() win.Visible = false; busy = false end)
+end
+
+-- 1) หน้าหลัก
+do
+    local home = AddTab(1, "🏠", "home")
+    local card = new("Frame", {Size = UDim2.new(1, -6, 0, 140), BackgroundColor3 = Color3.new(1, 1, 1), Parent = home})
+    corner(card, 16); stroke(card, 2.4, true)
+    new("UIGradient", {Color = GRAD_IDLE, Parent = card})
+    local av = new("ImageLabel", {Size = UDim2.fromOffset(110, 110), Position = UDim2.fromOffset(15, 15), BackgroundColor3 = PANEL2, Parent = card})
+    corner(av, 999); stroke(av, 3, true)
+    task.spawn(function()
+        local ok, img = pcall(function() return Players:GetUserThumbnailAsync(lp.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150) end)
+        if ok then av.Image = img end
+    end)
+    new("TextLabel", {Size = UDim2.new(1, -150, 0, 34), Position = UDim2.fromOffset(142, 18), BackgroundTransparency = 1, Font = Enum.Font.GothamBlack, TextSize = 22, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, Text = lp.DisplayName .. " (@" .. lp.Name .. ")", Parent = card})
+    local mapName = "?"
+    pcall(function() mapName = Market:GetProductInfo(game.PlaceId).Name end)
+    local mapL = new("TextLabel", {Size = UDim2.new(1, -150, 0, 26), Position = UDim2.fromOffset(142, 58), BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 17, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, Text = "", Parent = card})
+    Live(function() mapL.Text = L("map") .. ": " .. mapName end)
+    local devL = new("TextLabel", {Size = UDim2.new(1, -150, 0, 26), Position = UDim2.fromOffset(142, 90), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = RED, TextXAlignment = Enum.TextXAlignment.Left, Text = "", Parent = card})
+    Live(function() devL.Text = "🐱 " .. L("dev") .. ": " .. DEV_NAME end)
+
+    StatRow(home, "fps", function() return fps end)
+    StatRow(home, "hp", function() local h = hum(); return h and (math.floor(h.Health) .. " / " .. math.floor(h.MaxHealth)) or "-" end)
+    local hpBar = new("Frame", {Size = UDim2.new(1, -6, 0, 14), BackgroundColor3 = PANEL2, Parent = home})
+    corner(hpBar, 999)
+    local hpFill = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundColor3 = RED, Parent = hpBar})
+    corner(hpFill, 999)
+    Live(function() local h = hum(); if h then tw(hpFill, .3, {Size = UDim2.fromScale(math.clamp(h.Health / math.max(h.MaxHealth, 1), 0, 1), 1)}) end end)
+    LangPicker(home)
+end-- ===== ส่วน 6/9 : หมวด ESP (แยกเปิด/ปิดทีละอย่าง) =====
+
+do
+    local espP = AddTab(2, "🎯", "esp")
+    local ESPF = {p_hl = false, p_name = false, p_dist = false, p_hp = false, d_hl = false,
+                  b_hl = false, b_name = false, b_dist = false, range = 1500, brange = 1500, far = false}
+    local colorsList = {
+        Color3.fromRGB(255, 35, 55), Color3.fromRGB(60, 255, 120), Color3.fromRGB(70, 160, 255),
+        Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 220, 60),
+    }
+    local cIdx = {p = 1, b = 1}
+    local DOWNED_COL = Color3.fromRGB(255, 170, 0)
+    local espObjs = {}
+
+    local note = new("TextLabel", {Size = UDim2.new(1, -6, 0, 28), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 15, TextColor3 = SUB, Text = "ℹ️  " .. L("espnote"), Parent = espP})
+    track(note, "espnote", "ℹ️  ")
+    nonessential[#nonessential+1] = note
+
+    -- ผู้เล่น
+    Toggle(espP, "esp_p_hl", false, function(v) ESPF.p_hl = v end)
+    Toggle(espP, "esp_p_name", false, function(v) ESPF.p_name = v end)
+    Toggle(espP, "esp_p_dist", false, function(v) ESPF.p_dist = v end)
+    Toggle(espP, "esp_p_hp", false, function(v) ESPF.p_hp = v end)
+    Toggle(espP, "esp_d_hl", false, function(v) ESPF.d_hl = v end)
+    Slider(espP, "esprange", 100, 3000, 1500, function(v) ESPF.range = v end)
+    -- โรบอท
+    Toggle(espP, "esp_b_hl", false, function(v) ESPF.b_hl = v end)
+    Toggle(espP, "esp_b_name", false, function(v) ESPF.b_name = v end)
+    Toggle(espP, "esp_b_dist", false, function(v) ESPF.b_dist = v end)
+    Slider(espP, "espbrange", 100, 5000, 1500, function(v) ESPF.brange = v end)
+    Toggle(espP, "espfar", false, function(v) ESPF.far = v end)
+
+    local function ColorBtn(key, field)
+        cIdx[field] = 1
+        local sw
+        local b = Styled(espP, 54, function()
+            cIdx[field] = cIdx[field] % #colorsList + 1
+            sw.BackgroundColor3 = colorsList[cIdx[field]]
+        end)
+        local l = new("TextLabel", {Size = UDim2.new(1, -110, 1, 0), Position = UDim2.fromOffset(28, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Left, Text = "🎨  " .. L(key), Parent = b})
+        track(l, key, "🎨  ")
+        sw = new("Frame", {Size = UDim2.fromOffset(46, 28), Position = UDim2.new(1, -64, .5, -14), BackgroundColor3 = colorsList[1], Parent = b})
+        corner(sw, 8)
+    end
+    ColorBtn("espcolorp", "p")
+    ColorBtn("espcolorb", "b")
+
+    local function clear(key)
+        local o = espObjs[key]
+        if o then
+            if o.hl then o.hl:Destroy() end
+            if o.bb then o.bb:Destroy() end
+            espObjs[key] = nil
+        end
+    end
+    local function ensure(key, adornee, root, needHL, needBB)
+        local o = espObjs[key]
+        if o and o.adornee ~= adornee then clear(key); o = nil end
+        if not o then o = {adornee = adornee}; espObjs[key] = o end
+        if needHL then
+            if not o.hl or not o.hl.Parent then
+                o.hl = new("Highlight", {Adornee = adornee, FillTransparency = .55, OutlineColor = Color3.new(1, 1, 1), OutlineTransparency = 0, DepthMode = Enum.HighlightDepthMode.AlwaysOnTop, Parent = gui})
+            end
+        elseif o.hl then o.hl:Destroy(); o.hl = nil end
+        if needBB then
+            if not o.bb or not o.bb.Parent then
+                o.bb = new("BillboardGui", {Adornee = root, AlwaysOnTop = true, Size = UDim2.fromOffset(260, 50), StudsOffset = Vector3.new(0, 3.4, 0), ResetOnSpawn = false, Parent = gui})
+                o.tl = new("TextLabel", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = TEXT, TextStrokeTransparency = .3, TextStrokeColor3 = Color3.new(0, 0, 0), Text = "", Parent = o.bb})
+            end
+            o.bb.Adornee = root
+        elseif o.bb then o.bb:Destroy(); o.bb = nil; o.tl = nil end
+        return o
+    end
+
+    local function step()
+        local m = myRoot()
+        local seen, hlCount = {}, 0
+        -- ผู้เล่น
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= lp then
+                local ch = p.Character
+                local r = ch and ch:FindFirstChild("HumanoidRootPart")
+                local h = ch and ch:FindFirstChildOfClass("Humanoid")
+                if r and h and h.Health > 0 then
+                    local d = m and (m.Position - r.Position).Magnitude or 0
+                    if d <= ESPF.range then
+                        local dn = isDowned(p)
+                        local needHL = (ESPF.p_hl or (dn and ESPF.d_hl)) and hlCount < 30
+                        local needBB = ESPF.p_name or ESPF.p_dist or ESPF.p_hp
+                        if needHL or needBB then
+                            local o = ensure(p, ch, r, needHL, needBB)
+                            seen[p] = true
+                            local col = colorsList[cIdx.p]
+                            if needHL then
+                                hlCount += 1
+                                o.hl.FillColor = (dn and ESPF.d_hl) and DOWNED_COL or col
+                            end
+                            if needBB then
+                                local parts = {}
+                                if ESPF.p_name then parts[#parts+1] = p.DisplayName end
+                                if ESPF.p_dist and m then parts[#parts+1] = math.floor(d) .. " m" end
+                                if ESPF.p_hp then parts[#parts+1] = "❤ " .. math.floor(h.Health) end
+                                o.tl.TextColor3 = col
+                                o.tl.Text = table.concat(parts, "  |  ")
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        -- โรบอท
+        if ESPF.b_hl or ESPF.b_name or ESPF.b_dist then
+            local brange = ESPF.far and 5000 or ESPF.brange
+            local list = {}
+            for mdl, r in pairs(bots) do
+                if mdl.Parent and r.Parent and not Players:GetPlayerFromCharacter(mdl) then
+                    local d = m and (m.Position - r.Position).Magnitude or 0
+                    if d <= brange then list[#list+1] = {mdl = mdl, r = r, d = d} end
+                else
+                    bots[mdl] = nil
+                end
+            end
+            if ESPF.far then table.sort(list, function(a, b) return a.d < b.d end) end
+            for i, e in ipairs(list) do
+                if ESPF.far and i > 40 then break end
+                local needHL = ESPF.b_hl and hlCount < 30 and (not ESPF.far or i <= 6)
+                local needBB = ESPF.b_name or ESPF.b_dist
+                if needHL or needBB then
+                    local o = ensure(e.mdl, e.mdl, e.r, needHL, needBB)
+                    seen[e.mdl] = true
+                    local col = colorsList[cIdx.b]
+                    if needHL then hlCount += 1; o.hl.FillColor = col end
+                    if needBB then
+                        local parts = {}
+                        if ESPF.b_name then parts[#parts+1] = e.mdl.Name end
+                        if ESPF.b_dist and m then parts[#parts+1] = math.floor(e.d) .. " m" end
+                        o.tl.TextColor3 = col
+                        o.tl.Text = table.concat(parts, "  |  ")
+                    end
+                end
+            end
+        end
+        for k in pairs(espObjs) do
+            if not seen[k] then clear(k) end
+        end
+    end
+    connect(Players.PlayerRemoving, clear)
+    task.spawn(function()
+        while gui.Parent do
+            pcall(step)
+            task.wait(ESPF.far and 0.3 or 0.1)
+        end
+    end)
+end-- ===== ส่วน 7A : เรดาร์ + ลูกศร + เครื่องหมายเพื่อนล้ม =====
+
+local RADAR = {on = false, range = 120, bots = true}
+local radarSetters = {}
+local radarF, setRadarAll
+
+do
+    radarF = new("Frame", {Size = UDim2.fromOffset(200, 200), Position = UDim2.new(0, 18, 1, -230), BackgroundColor3 = Color3.fromRGB(12, 12, 16), BackgroundTransparency = .25, Visible = false, ZIndex = 30, Parent = gui})
+    corner(radarF, 999); stroke(radarF, 2.4, true)
+    local ring2 = new("Frame", {Size = UDim2.fromScale(.5, .5), AnchorPoint = Vector2.new(.5, .5), Position = UDim2.fromScale(.5, .5), BackgroundTransparency = 1, ZIndex = 30, Parent = radarF})
+    corner(ring2, 999); new("UIStroke", {Color = RED, Thickness = 1, Transparency = .6, Parent = ring2})
+    local me = new("Frame", {Size = UDim2.fromOffset(10, 10), AnchorPoint = Vector2.new(.5, .5), Position = UDim2.fromScale(.5, .5), BackgroundColor3 = TEXT, ZIndex = 32, Parent = radarF})
+    corner(me, 999)
+    new("TextLabel", {Size = UDim2.fromOffset(20, 16), AnchorPoint = Vector2.new(.5, 0), Position = UDim2.new(.5, 0, 0, 2), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = RED, Text = "N", ZIndex = 32, Parent = radarF})
+
+    local dots = {}
+    local function plot(key, pos, color, used, fwd, right, m)
+        local rel = pos - m.Position
+        local x, z = rel:Dot(right), rel:Dot(fwd)
+        local a = RADAR.range
+        local px, py = x / a, -z / a
+        local mag = math.sqrt(px * px + py * py)
+        if mag > 1 then px, py = px / mag, py / mag end
+        local f = dots[key]
+        if not f then
+            f = new("Frame", {Size = UDim2.fromOffset(9, 9), AnchorPoint = Vector2.new(.5, .5), ZIndex = 31, Parent = radarF})
+            corner(f, 999)
+            dots[key] = f
+        end
+        f.BackgroundColor3 = color
+        f.Position = UDim2.fromScale(.5 + px * .47, .5 + py * .47)
+        f.Visible = true
+        used[key] = true
+    end
+    local function radarStep()
+        local m = myRoot()
+        local cam = workspace.CurrentCamera
+        if not RADAR.on or not m or not cam then radarF.Visible = false; return end
+        radarF.Visible = true
+        local lv = cam.CFrame.LookVector
+        local rv = cam.CFrame.RightVector
+        local fwd = Vector3.new(lv.X, 0, lv.Z)
+        local right = Vector3.new(rv.X, 0, rv.Z)
+        if fwd.Magnitude < 0.01 or right.Magnitude < 0.01 then return end
+        fwd, right = fwd.Unit, right.Unit
+        local used = {}
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= lp then
+                local r = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                if r then
+                    plot(p, r.Position, isDowned(p) and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(60, 255, 120), used, fwd, right, m)
+                end
+            end
+        end
+        if RADAR.bots then
+            for mdl, r in pairs(bots) do
+                if mdl.Parent and r.Parent then plot(mdl, r.Position, RED, used, fwd, right, m) end
+            end
+        end
+        for k, f in pairs(dots) do
+            if not used[k] then f.Visible = false end
+        end
+    end
+    task.spawn(function()
+        while gui.Parent do
+            pcall(radarStep)
+            task.wait(0.1)
+        end
+    end)
+
+    setRadarAll = function(v)
+        RADAR.on = v
+        for _, s in ipairs(radarSetters) do s(v) end
+    end
+
+    -- ลูกศรชี้ไปหาเพื่อนที่ล้ม
+    local arrowF = new("Frame", {Size = UDim2.fromOffset(120, 100), AnchorPoint = Vector2.new(.5, 0), Position = UDim2.new(.5, 0, 0, 90), BackgroundTransparency = 1, Visible = false, ZIndex = 35, Parent = gui})
+    local arrowL = new("TextLabel", {Size = UDim2.fromOffset(60, 60), AnchorPoint = Vector2.new(.5, .5), Position = UDim2.fromScale(.5, .4), BackgroundTransparency = 1, Font = Enum.Font.GothamBlack, TextSize = 54, TextColor3 = RED, TextStrokeTransparency = .4, Text = "▲", ZIndex = 35, Parent = arrowF})
+    local arrowT = new("TextLabel", {Size = UDim2.new(1, 0, 0, 24), Position = UDim2.new(0, 0, 1, -24), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = TEXT, TextStrokeTransparency = .4, Text = "", ZIndex = 35, Parent = arrowF})
+    connect(RunService.RenderStepped, function()
+        local first = nearestDowned()
+        local cam = workspace.CurrentCamera
+        local m = myRoot()
+        if not FLAGS.arrow or not first or not cam or not m or not first.root.Parent then arrowF.Visible = false; return end
+        arrowF.Visible = true
+        local dir = first.root.Position - cam.CFrame.Position
+        local x, z = dir:Dot(cam.CFrame.RightVector), dir:Dot(cam.CFrame.LookVector)
+        arrowL.Rotation = math.deg(math.atan2(x, z))
+        arrowT.Text = first.plr.DisplayName .. "  " .. math.floor((m.Position - first.root.Position).Magnitude) .. " m"
+    end)
+
+    -- เครื่องหมายเพื่อนที่ล้ม
+    local marks = {}
+    task.spawn(function()
+        while gui.Parent do
+            pcall(function()
+                local m = myRoot()
+                local seen = {}
+                if FLAGS.mark then
+                    for _, e in ipairs(WS.downed) do
+                        local o = marks[e.plr]
+                        if not o or not o.Parent then
+                            o = new("BillboardGui", {Adornee = e.root, AlwaysOnTop = true, Size = UDim2.fromOffset(240, 46), StudsOffset = Vector3.new(0, 5, 0), ResetOnSpawn = false, Parent = gui})
+                            new("TextLabel", {Name = "T", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Font = Enum.Font.GothamBlack, TextSize = 18, TextColor3 = Color3.fromRGB(255, 200, 0), TextStrokeTransparency = .2, Text = "", Parent = o})
+                            marks[e.plr] = o
+                        end
+                        o.Adornee = e.root
+                        local txt = "⚠ " .. e.plr.DisplayName
+                        if FLAGS.markdist and m then txt = txt .. "  " .. math.floor(e.dist) .. " m" end
+                        o.T.Text = txt
+                        seen[e.plr] = true
+                    end
+                end
+                for p, o in pairs(marks) do
+                    if not seen[p] then o:Destroy(); marks[p] = nil end
+                end
+            end)
+            task.wait(0.15)
+        end
+    end)
+end-- ===== ส่วน 7B : ระบบชุบ/อุ้ม + หมวดออโต้ + หมวดเรดาร์ =====
+
+do
+    local AUTO = {carry = false, revive = false, safe = false, warp = true, back = false}
+    local CARRY_WORDS = {"carry", "อุ้ม", "pick"}
+    local REVIVE_WORDS = {"revive", "ชุบ", "help", "assist", "rescue", "lift"}
+    local RS = game:GetService("ReplicatedStorage")
+    local VIM
+    pcall(function() VIM = game:GetService("VirtualInputManager") end)
+    local CHECK = 2      -- ตรวจเพื่อนล้มทุกกี่วินาที
+    local REV_MAX = 10   -- พยายามชุบคนเดียวสูงสุดกี่วินาที
+    local busy, warned, lastFail = false, false, 0
+
+    -- เก็บปุ่ม ProximityPrompt ทั้งแมพ
+    local prompts = {}
+    local function addPrompt(o) if o:IsA("ProximityPrompt") then prompts[o] = true end end
+    for _, d in ipairs(workspace:GetDescendants()) do addPrompt(d) end
+    connect(workspace.DescendantAdded, addPrompt)
+    connect(workspace.DescendantRemoving, function(o) prompts[o] = nil end)
+
+    -- เก็บ remote ที่ชื่อเกี่ยวกับชุบ/โต้ตอบ
+    local remotes = {}
+    for _, d in ipairs(RS:GetDescendants()) do
+        if d:IsA("RemoteEvent") then
+            local n = d.Name:lower()
+            if n:find("revive", 1, true) or n:find("interact", 1, true) or n:find("rescue", 1, true) then
+                remotes[#remotes+1] = d
+            end
+        end
+    end
+
+    local function promptPos(p)
+        local par = p.Parent
+        if par and par:IsA("BasePart") then return par.Position end
+        if par and par:IsA("Attachment") then return par.WorldPosition end
+        return nil
+    end
+    local function matches(p, words)
+        local t = (p.ActionText .. " " .. p.ObjectText .. " " .. p.Name):lower()
+        for _, w in ipairs(words) do
+            if t:find(w, 1, true) then return true end
+        end
+        return false
+    end
+    local function findPrompt(plr, words, anyOk)
+        local ch = plr.Character
+        local root = ch and ch:FindFirstChild("HumanoidRootPart")
+        if not ch or not root then return nil end
+        local anyP
+        for p in pairs(prompts) do
+            if p.Parent and p.Enabled then
+                local inChar = p:IsDescendantOf(ch)
+                local pos = promptPos(p)
+                if inChar or (pos and (pos - root.Position).Magnitude <= 8) then
+                    if matches(p, words) then return p end
+                    if inChar and not anyP then anyP = p end
+                end
+            end
+        end
+        return anyOk and anyP or nil
+    end
+    local function fire(p)
+        pcall(function() p.HoldDuration = 0; p.RequiresLineOfSight = false end)
+        if fireproximityprompt then
+            pcall(fireproximityprompt, p)
+            return true
+        end
+        if not warned then warned = true; notify("NEXORA", L("nofire"), 5, true) end
+        return false
+    end
+    local function holdE(on)
+        if VIM then pcall(function() VIM:SendKeyEvent(on, Enum.KeyCode.E, false, game) end) end
+    end
+    local function doRevive(plr)
+        local p = findPrompt(plr, REVIVE_WORDS, true)
+        if p then fire(p) end
+        for _, rem in ipairs(remotes) do
+            if rem.Name:lower():find("interact", 1, true) then
+                pcall(function() rem:FireServer("Revive", true, plr.Name) end)
+            else
+                pcall(function() rem:FireServer(plr.Name) end)
+                pcall(function() rem:FireServer(plr) end)
+            end
+        end
+    end
+
+    -- วาร์ปไปหาเพื่อนแล้วยิงชุบซ้ำ ๆ จนลุก (หรือครบ REV_MAX วินาที)
+    local function reviveTarget(plr)
+        local t0, ok = tick(), false
+        holdE(true)
+        while tick() - t0 < REV_MAX do
+            local h = hum()
+            if not h or h.Health <= 0 then break end
+            if not plr.Parent or not isDowned(plr) then ok = true; break end
+            local r = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+            if r then warpTo(r) end
+            doRevive(plr)
+            task.wait(0.1)
+        end
+        holdE(false)
+        if not ok and (not plr.Parent or not isDowned(plr)) then ok = true end
+        return ok
+    end
+    local function runRevive(plr)
+        if busy then return end
+        busy = true
+        local m = myRoot()
+        local origin = m and m.CFrame
+        local ok = false
+        pcall(function() ok = reviveTarget(plr) end)
+        if AUTO.back and origin then
+            task.wait(0.3)
+            pcall(function() local mm = myRoot(); if mm then mm.CFrame = origin end end)
+        end
+        busy = false
+        if ok then
+            notify(L("revived"), plr.DisplayName, 2, true)
+        elseif tick() - lastFail > 15 then
+            lastFail = tick()
+            notify("NEXORA", L("noprompt"), 3, true)
+        end
+    end
+    local function revive1s()
+        local e = nearestDowned()
+        if not e then notify("NEXORA", L("nobody"), 2, true); return end
+        task.spawn(runRevive, e.plr)
+    end
+
+    -- ออโต้ชุบ: ตรวจทุก 2 วิ ถ้ามีคนล้มวาร์ปไปชุบทันที
+    task.spawn(function()
+        while gui.Parent do
+            task.wait(CHECK)
+            pcall(function()
+                local h = hum()
+                if not AUTO.revive or AUTO.safe or busy or not h or h.Health <= 0 or isDowned(lp) then return end
+                worldStep()
+                local list = {}
+                for _, e in ipairs(WS.downed) do list[#list+1] = e.plr end
+                for _, plr in ipairs(list) do
+                    if not AUTO.revive then break end
+                    if plr.Parent and isDowned(plr) then runRevive(plr) end
+                end
+            end)
+        end
+    end)
+
+    -- ออโต้อุ้ม / อุ้มไปที่ปลอดภัย
+    local eng = {phase = "idle", target = nil, t = 0, safe = nil}
+    task.spawn(function()
+        while gui.Parent do
+            task.wait(0.25)
+            local h, m = hum(), myRoot()
+            if not (AUTO.carry or AUTO.safe) or busy or not h or not m or h.Health <= 0 then
+                eng.phase = "idle"; eng.target = nil
+            else
+                pcall(function()
+                    local tg = eng.target
+                    if tg and eng.phase ~= "cool" and (not tg.plr.Parent or not isDowned(tg.plr)) then
+                        eng.phase = "idle"; eng.target = nil
+                    end
+                    if eng.phase == "idle" then
+                        local e = nearestDowned()
+                        if e then eng.target = e; eng.phase = "go"; eng.t = tick() end
+                    elseif eng.phase == "go" then
+                        local r = eng.target.root
+                        if not r.Parent then eng.phase = "idle"; return end
+                        local d = (m.Position - r.Position).Magnitude
+                        if d > 5 then
+                            if AUTO.warp then warpTo(r); d = 0 else h:MoveTo(r.Position) end
+                        end
+                        if d <= 5 then
+                            local p = findPrompt(eng.target.plr, CARRY_WORDS)
+                            if p then fire(p) end
+                            if AUTO.safe then
+                                local _, bp = nearestBot(m.Position)
+                                local away = bp and (m.Position - bp) or Vector3.new(math.random() - .5, 0, math.random() - .5)
+                                away = Vector3.new(away.X, 0, away.Z)
+                                if away.Magnitude < 1 then away = Vector3.new(1, 0, 0) end
+                                eng.safe = m.Position + away.Unit * 80
+                                eng.phase = "flee"; eng.t = tick()
+                            else
+                                eng.phase = "cool"; eng.t = tick()
+                            end
+                        end
+                        if tick() - eng.t > 20 then eng.phase = "idle" end
+                    elseif eng.phase == "flee" then
+                        h:MoveTo(eng.safe)
+                        if (m.Position - eng.safe).Magnitude < 8 or tick() - eng.t > 8 then
+                            if AUTO.revive and eng.target and eng.target.plr.Parent then runRevive(eng.target.plr) end
+                            eng.phase = "cool"; eng.t = tick()
+                        end
+                    elseif eng.phase == "cool" then
+                        if tick() - eng.t > 2 then eng.phase = "idle" end
+                    end
+                end)
+            end
+        end
+    end)
+
+    -- ---------- 3) หมวดออโต้ ----------
+    local autoP = AddTab(3, "🤖", "auto")
+    Button(autoP, "revive1s", revive1s, "⚡  ", 60)
+    Toggle(autoP, "warpback", false, function(v) AUTO.back = v end)
+    Toggle(autoP, "autowarp", true, function(v) AUTO.warp = v end)
+    Toggle(autoP, "autocarry", false, function(v) AUTO.carry = v end)
+    Toggle(autoP, "autorevive", false, function(v) AUTO.revive = v end)
+    Toggle(autoP, "autosafe", false, function(v) AUTO.safe = v end)
+    Toggle(autoP, "mark", false, function(v) FLAGS.mark = v end)
+    Toggle(autoP, "markdist", false, function(v) FLAGS.markdist = v end)
+    Toggle(autoP, "arrow", false, function(v) FLAGS.arrow = v end)
+    Toggle(autoP, "alert", false, function(v) FLAGS.alert = v end)
+    local _, rs1 = Toggle(autoP, "radarfriends", false, function(v) setRadarAll(v) end)
+    radarSetters[#radarSetters+1] = rs1
+
+    local prioBox = new("Frame", {Size = UDim2.new(1, -6, 0, 170), BackgroundColor3 = Color3.new(1, 1, 1), Parent = autoP})
+    corner(prioBox, 12); stroke(prioBox, 1.6, true)
+    new("UIGradient", {Color = GRAD_IDLE, Parent = prioBox})
+    local prioT = new("TextLabel", {Size = UDim2.new(1, -30, 0, 28), Position = UDim2.fromOffset(18, 6), BackgroundTransparency = 1, Font = Enum.Font.GothamBlack, TextSize = 17, TextColor3 = RED, TextXAlignment = Enum.TextXAlignment.Left, Text = "", Parent = prioBox})
+    track(prioT, "prio", "📋  ")
+    local prioL = new("TextLabel", {Size = UDim2.new(1, -30, 1, -40), Position = UDim2.fromOffset(18, 36), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 16, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Text = "", Parent = prioBox})
+    Live(function()
+        prioT.Text = "📋  " .. L("prio")
+        if #WS.downed == 0 then prioL.Text = L("nobody"); return end
+        local lines = {}
+        for i = 1, math.min(5, #WS.downed) do
+            local e = WS.downed[i]
+            lines[#lines+1] = i .. ". " .. e.plr.DisplayName .. "  —  " .. math.floor(e.dist) .. " m"
+        end
+        prioL.Text = table.concat(lines, "\n")
+    end)
+
+    StatRow(autoP, "alive", function() return WS.alive end)
+    StatRow(autoP, "teamstat", function() return "✅ " .. WS.alive .. "   ⚠ " .. WS.dn end)
+    StatRow(autoP, "nearest", function()
+        local e, d = nearestDowned()
+        return e and (e.plr.DisplayName .. " (" .. math.floor(d or 0) .. " m)") or "-"
+    end)
+    StatRow(autoP, "helps", function() return S.helps end)
+    StatRow(autoP, "helpok", function() return S.helpOk end)
+    StatRow(autoP, "helptime", function() return S.lastHelp and string.format("%.1f s", S.lastHelp) or "-" end)
+    Toggle(autoP, "savestats", true, function(v) FLAGS.saveOn = v; if v then saveStats() end end)
+
+    -- ---------- 4) หมวดเรดาร์ ----------
+    local radarP = AddTab(4, "📡", "radar")
+    local _, rs2 = Toggle(radarP, "radaron", false, function(v) setRadarAll(v) end)
+    radarSetters[#radarSetters+1] = rs2
+    Slider(radarP, "radarrange", 30, 400, 120, function(v) RADAR.range = v end)
+    Toggle(radarP, "radarbots", true, function(v) RADAR.bots = v end)
+end-- ===== ส่วน 8/10 : หมวดสถิติ + หมวดภาพ + HUD =====
+
+do
+    -- ---------- HUD บนจอ ----------
+    local hudTop = new("TextLabel", {Size = UDim2.fromOffset(460, 26), AnchorPoint = Vector2.new(.5, 0), Position = UDim2.new(.5, 0, 0, 8), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 17, TextColor3 = TEXT, TextStrokeTransparency = .3, Text = "", ZIndex = 30, Parent = gui})
+    local hudStats = new("TextLabel", {Size = UDim2.fromOffset(260, 120), AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -14, 1, -14), BackgroundColor3 = Color3.fromRGB(12, 12, 16), BackgroundTransparency = .3, Font = Enum.Font.GothamMedium, TextSize = 15, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Text = "", Visible = false, ZIndex = 30, Parent = gui})
+    corner(hudStats, 12); stroke(hudStats, 1.8, true)
+    new("UIPadding", {PaddingLeft = UDim.new(0, 12), PaddingTop = UDim.new(0, 8), Parent = hudStats})
+
+    local HUD = {ping = false, players = false, time = false}
+    local function pingNow()
+        local ok, v = pcall(function() return StatsSvc.Network.ServerStatsItem["Data Ping"]:GetValue() end)
+        return ok and (math.floor(v) .. " ms") or "-"
+    end
+    task.spawn(function()
+        while gui.Parent do
+            pcall(function()
+                local parts = {}
+                if HUD.ping then parts[#parts+1] = "📶 " .. L("pingl") .. " " .. pingNow() end
+                if HUD.players then parts[#parts+1] = "👥 " .. L("plrl") .. " " .. #Players:GetPlayers() end
+                if HUD.time then parts[#parts+1] = "⏱ " .. L("timel") .. " " .. fmt(surviveTime()) end
+                hudTop.Text = table.concat(parts, "   |   ")
+                hudStats.Visible = FLAGS.statshud
+                if FLAGS.statshud then
+                    hudStats.Text = "🐱 NEXORA\n⏱ " .. L("survive") .. ": " .. fmt(surviveTime())
+                        .. "\n🏆 " .. L("best") .. ": " .. fmt(math.max(S.best, surviveTime()))
+                        .. "\n🔁 " .. L("rounds") .. ": " .. S.rounds
+                        .. "\n🤝 " .. L("sh") .. ": " .. S.helps .. "  ✅ " .. S.helpOk
+                end
+            end)
+            task.wait(0.25)
+        end
+    end)
+
+    -- ---------- 5) หมวดสถิติ ----------
+    local statP = AddTab(5, "📊", "stats")
+    StatRow(statP, "survive", function() return fmt(surviveTime()) end)
+    StatRow(statP, "best", function() return fmt(math.max(S.best, surviveTime())) end)
+    StatRow(statP, "rounds", function() return S.rounds end)
+    StatRow(statP, "helps", function() return S.helps end)
+    StatRow(statP, "helpok", function() return S.helpOk end)
+    StatRow(statP, "helptime", function()
+        if not S.lastHelp then return "-" end
+        local avg = S.helpSum / math.max(S.helpOk, 1)
+        return string.format("%.1f s (avg %.1f)", S.lastHelp, avg)
+    end)
+    StatRow(statP, "uptime", function() return fmt(tick() - S.start) end)
+    Toggle(statP, "summary", true, function(v) FLAGS.summary = v end)
+    Toggle(statP, "statshud", false, function(v) FLAGS.statshud = v end)
+    Button(statP, "resetstats", function()
+        S.best, S.rounds, S.helps, S.helpOk, S.rHelps, S.rOk, S.lastHelp, S.helpSum = 0, 1, 0, 0, 0, 0, nil, 0
+        S.lifeStart = tick(); S.lifeEnd = nil; S.dead = false
+        saveStats()
+        notify("NEXORA", L("statsreset"), 2, true)
+    end, "🗑  ")
+
+    -- หมวดที่ 6 / 7 สร้างหน้า (เนื้อหาอยู่ส่วน 9)
+    AddTab(6, "🏃", "move")
+    AddTab(7, "⚙️", "automation")
+
+    -- ---------- 8) หมวดภาพ ----------
+    local visP = AddTab(8, "👁", "visual")
+    local cam = workspace.CurrentCamera
+
+    Slider(visP, "fov", 40, 120, math.floor(cam.FieldOfView), function(v) workspace.CurrentCamera.FieldOfView = v end)
+    local origZoom = lp.CameraMaxZoomDistance
+    restorers[#restorers+1] = function() lp.CameraMaxZoomDistance = origZoom end
+    Slider(visP, "zoom", 20, 1000, math.clamp(math.floor(origZoom), 20, 1000), function(v) lp.CameraMaxZoomDistance = v end)
+
+    local origBright = Lighting.Brightness
+    restorers[#restorers+1] = function() Lighting.Brightness = origBright end
+    Slider(visP, "bright", 0, 100, math.clamp(math.floor(origBright * 20 + 0.5), 0, 100), function(v) Lighting.Brightness = v / 20 end)
+
+    local lessSaved, saverFx, saverState = {}, {}, {}
+    local setLess, setSaver, setUltra
+    local lessOn, saverOn, ultraOn = false, false, false
+
+    local function applyLess(v)
+        lessOn = v
+        if v then
+            for _, o in ipairs(Lighting:GetDescendants()) do
+                if o:IsA("PostEffect") and o.Name ~= "NEXORA_FX" then lessSaved[o] = o.Enabled; o.Enabled = false end
+            end
+        else
+            for o, en in pairs(lessSaved) do if o.Parent then o.Enabled = en end end
+            lessSaved = {}
+        end
+    end
+    local function applySaver(v)
+        saverOn = v
+        if v then
+            pcall(function() saverState.q = settings().Rendering.QualityLevel; settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+            saverState.shadows = Lighting.GlobalShadows
+            Lighting.GlobalShadows = false
+            pcall(function() if setfpscap then setfpscap(30) end end)
+            saverFx = {}
+            for _, o in ipairs(workspace:GetDescendants()) do
+                if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Smoke") or o:IsA("Fire") or o:IsA("Sparkles") then
+                    if o.Enabled then o.Enabled = false; saverFx[#saverFx+1] = o end
+                end
+            end
+        else
+            pcall(function() if saverState.q then settings().Rendering.QualityLevel = saverState.q end end)
+            if saverState.shadows ~= nil then Lighting.GlobalShadows = saverState.shadows end
+            pcall(function() if setfpscap then setfpscap(0) end end)
+            for _, o in ipairs(saverFx) do if o.Parent then o.Enabled = true end end
+            saverFx = {}
+        end
+    end
+    local function applyUltra(v)
+        ultraOn = v
+        if v then
+            pcall(function() saverState.uq = settings().Rendering.QualityLevel; settings().Rendering.QualityLevel = Enum.QualityLevel.Level21 end)
+            new("BloomEffect", {Name = "NEXORA_FX", Intensity = .6, Size = 30, Threshold = .9, Parent = Lighting})
+            new("ColorCorrectionEffect", {Name = "NEXORA_FX", Saturation = .25, Contrast = .15, Parent = Lighting})
+            new("SunRaysEffect", {Name = "NEXORA_FX", Intensity = .15, Spread = .8, Parent = Lighting})
+        else
+            pcall(function() if saverState.uq then settings().Rendering.QualityLevel = saverState.uq end end)
+            for _, o in ipairs(Lighting:GetChildren()) do if o.Name == "NEXORA_FX" then o:Destroy() end end
+        end
+    end
+    restorers[#restorers+1] = function()
+        if lessOn then applyLess(false) end
+        if saverOn then applySaver(false) end
+        if ultraOn then applyUltra(false) end
+    end
+
+    local _
+    _, setLess = Toggle(visP, "lessfx", false, function(v)
+        if v and ultraOn then applyUltra(false); setUltra(false) end
+        applyLess(v)
+    end)
+    _, setSaver = Toggle(visP, "saver", false, function(v)
+        if v and ultraOn then applyUltra(false); setUltra(false) end
+        applySaver(v)
+    end)
+    _, setUltra = Toggle(visP, "ultra", false, function(v)
+        if v then
+            if saverOn then applySaver(false); setSaver(false) end
+            if lessOn then applyLess(false); setLess(false) end
+        end
+        applyUltra(v)
+    end)
+
+    Toggle(visP, "hudping", false, function(v) HUD.ping = v end)
+    Toggle(visP, "hudplayers", false, function(v) HUD.players = v end)
+    Toggle(visP, "hudtime", false, function(v) HUD.time = v end)
+
+    -- เป้าเล็ง
+    local XH = {style = 0, size = 14}
+    local xhF = new("Frame", {Size = UDim2.fromOffset(80, 80), AnchorPoint = Vector2.new(.5, .5), Position = UDim2.fromScale(.5, .5), BackgroundTransparency = 1, ZIndex = 40, Parent = gui})
+    local function bit(w, h, x, y)
+        local f = new("Frame", {Size = UDim2.fromOffset(w, h), AnchorPoint = Vector2.new(.5, .5), Position = UDim2.new(.5, x, .5, y), BackgroundColor3 = RED, BorderSizePixel = 0, ZIndex = 40, Parent = xhF})
+        new("UIStroke", {Color = Color3.new(0, 0, 0), Thickness = 1, Parent = f})
+        return f
+    end
+    local function renderXH()
+        for _, c in ipairs(xhF:GetChildren()) do c:Destroy() end
+        local s = XH.size
+        if XH.style == 1 then
+            corner(bit(6, 6, 0, 0), 999)
+        elseif XH.style == 2 then
+            local len = math.max(4, s // 2)
+            local off = 4 + len / 2
+            bit(len, 2, -off, 0); bit(len, 2, off, 0); bit(2, len, 0, -off); bit(2, len, 0, off)
+        elseif XH.style == 3 then
+            local ringF = new("Frame", {Size = UDim2.fromOffset(s * 2, s * 2), AnchorPoint = Vector2.new(.5, .5), Position = UDim2.fromScale(.5, .5), BackgroundTransparency = 1, ZIndex = 40, Parent = xhF})
+            corner(ringF, 999)
+            new("UIStroke", {Color = RED, Thickness = 2, Parent = ringF})
+            corner(bit(4, 4, 0, 0), 999)
+        end
+    end
+    Cycle(visP, function() return "🎯  " .. L("xhair") .. ": " .. L("xh" .. XH.style) end, function()
+        XH.style = (XH.style + 1) % 4
+        renderXH()
+    end)
+    Slider(visP, "xhsize", 6, 36, 14, function(v) XH.size = v; renderXH() end)
+
+    Slider(visP, "guialpha", 0, 60, 0, function(v)
+        local a = v / 100
+        win.BackgroundTransparency = a
+        bar.BackgroundTransparency = a
+        barFill.BackgroundTransparency = a
+    end)
+    Toggle(visP, "reduceanim", false, function(v) reduceAnim = v end)
+    Toggle(visP, "hidenon", false, function(v)
+        for _, o in ipairs(nonessential) do
+            if o and o.Parent then o.Visible = not v end
+        end
+    end)
+
+    AddTab(9, "🧍", "stance")
+end-- ===== ส่วน 9 : เนื้อหาหมวด เคลื่อนที่ / อัตโนมัติ / ท่าทาง =====
+
+do
+    local function addT(k, th, en) T.th[k] = th; T.en[k] = en end
+    addT("speedon", "ปรับความเร็ววิ่ง", "Custom Walk Speed")
+    addT("speed", "ความเร็ววิ่ง (สูงสุด 500)", "Walk Speed (max 500)")
+    addT("jumpon", "ปรับแรงกระโดด", "Custom Jump Power")
+    addT("jump", "แรงกระโดด", "Jump Power")
+    addT("infjump", "กระโดดกลางอากาศ", "Infinite Jump")
+    addT("bhop", "ออโต้กระโดด (Bhop)", "Auto Bhop")
+    addT("noclip", "ทะลุกำแพง", "Noclip")
+    addT("grav", "แรงโน้มถ่วง (%)", "Gravity (%)")
+    addT("botalert", "เตือนเมื่อโรบอทเข้าใกล้", "Bot Proximity Alert")
+    addT("botflee", "วิ่งหนีโรบอทอัตโนมัติ", "Auto Flee from Bots")
+    addT("botrange", "ระยะโรบอทที่ตอบสนอง", "Bot Reaction Range")
+    addT("autocollect", "เก็บไอเทม/ตั๋วอัตโนมัติ", "Auto Collect Items")
+    addT("sit", "นั่ง", "Sit")
+    addT("freeze", "ล็อกตัวอยู่กับที่", "Freeze in Place")
+    addT("hip", "ความสูงตัว (HipHeight)", "Body Height")
+    addT("noragdoll", "กันล้มกลิ้ง", "Anti Ragdoll")
+    addT("dbg", "ตรวจสถานะผู้เล่นใกล้สุด (ดีบัก)", "Inspect Nearest Player (Debug)")
+    addT("botnear", "โรบอทอยู่ใกล้!", "Bot nearby!")
+    addT("anim_id", "เล่นท่าด้วย ID", "Play Animation by ID")
+    addT("anim_stop", "หยุดท่าทาง", "Stop Animation")
+    addT("anim_scan", "สแกนท่าในเกมใหม่", "Rescan Animations")
+
+    local pm, pa, pd = pages[6], pages[7], pages[9]
+    local M = {speed = false, sv = 32, jump = false, jv = 60, inf = false, bhop = false, noclip = false}
+    local origGrav = workspace.Gravity
+    restorers[#restorers+1] = function()
+        workspace.Gravity = origGrav
+        local h, m = hum(), myRoot()
+        if h and M.speed then h.WalkSpeed = M.ws0 or 16 end
+        if m then m.Anchored = false end
+    end
+
+    -- ===== หมวดการเคลื่อนที่ =====
+    Toggle(pm, "speedon", false, function(v)
+        local h = hum()
+        if v then M.ws0 = h and h.WalkSpeed or 16 elseif h then h.WalkSpeed = M.ws0 or 16 end
+        M.speed = v
+    end)
+    Slider(pm, "speed", 16, 500, 32, function(v) M.sv = v end)
+    Toggle(pm, "jumpon", false, function(v)
+        local h = hum()
+        if v then
+            M.jp0 = h and h.JumpPower or 50
+        elseif h then
+            h.UseJumpPower = true; h.JumpPower = M.jp0 or 50
+        end
+        M.jump = v
+    end)
+    Slider(pm, "jump", 50, 300, 60, function(v) M.jv = v end)
+    Toggle(pm, "infjump", false, function(v) M.inf = v end)
+    Toggle(pm, "bhop", false, function(v) M.bhop = v end)
+    Toggle(pm, "noclip", false, function(v) M.noclip = v end)
+    Slider(pm, "grav", 10, 200, 100, function(v) workspace.Gravity = origGrav * v / 100 end)
+
+    connect(RunService.Heartbeat, function(dt)
+        local h, r = hum(), myRoot()
+        if not h or not r then return end
+        if M.speed then
+            h.WalkSpeed = M.sv
+            -- ถ้าเกมล็อกความเร็วไว้ ดันตัวเพิ่มให้ถึงความเร็วที่ตั้ง
+            local md = h.MoveDirection
+            if md.Magnitude > 0 then
+                local v = r.AssemblyLinearVelocity
+                local cur = Vector3.new(v.X, 0, v.Z).Magnitude
+                if cur < M.sv * 0.9 then
+                    r.CFrame = r.CFrame + md.Unit * ((M.sv - cur) * dt)
+                end
+            end
+        end
+        if M.jump then h.UseJumpPower = true; h.JumpPower = M.jv end
+        if M.bhop and h.MoveDirection.Magnitude > 0 and h.FloorMaterial ~= Enum.Material.Air then
+            h:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end)
+    connect(UIS.JumpRequest, function()
+        if M.inf then
+            local h = hum()
+            if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
+        end
+    end)
+    connect(RunService.Stepped, function()
+        if not M.noclip then return end
+        local c = lp.Character
+        if not c then return end
+        for _, p in ipairs(c:GetDescendants()) do
+            if p:IsA("BasePart") and p.CanCollide then p.CanCollide = false end
+        end
+    end)
+
+    -- ===== หมวดอัตโนมัติ =====
+    local A = {alert = false, flee = false, range = 60, collect = false}
+    Toggle(pa, "botalert", false, function(v) A.alert = v end)
+    Toggle(pa, "botflee", false, function(v) A.flee = v end)
+    Slider(pa, "botrange", 20, 200, 60, function(v) A.range = v end)
+    Toggle(pa, "autocollect", false, function(v) A.collect = v end)
+
+    local lastAlert = 0
+    task.spawn(function()
+        while gui.Parent do
+            task.wait(0.15)
+            pcall(function()
+                local m, h = myRoot(), hum()
+                if not m or not h or h.Health <= 0 then return end
+                local d, bp = nearestBot(m.Position)
+                if d and d <= A.range then
+                    if A.alert and tick() - lastAlert > 3 then
+                        lastAlert = tick()
+                        notify("NEXORA", L("botnear") .. " " .. math.floor(d) .. " m", 2, true)
+                    end
+                    if A.flee then
+                        local away = Vector3.new(m.Position.X - bp.X, 0, m.Position.Z - bp.Z)
+                        if away.Magnitude < 0.1 then away = Vector3.new(1, 0, 0) end
+                        h:MoveTo(m.Position + away.Unit * 60)
+                    end
+                end
+            end)
+        end
+    end)
+
+    local items = {}
+    local function tryItem(o)
+        if o:IsA("BasePart") then
+            local n = o.Name:lower()
+            if n:find("ticket", 1, true) or n:find("coin", 1, true) or n:find("token", 1, true) then items[o] = true end
+        end
+    end
+    for _, d in ipairs(workspace:GetDescendants()) do tryItem(d) end
+    connect(workspace.DescendantAdded, tryItem)
+    connect(workspace.DescendantRemoving, function(o) items[o] = nil end)
+    task.spawn(function()
+        local warned = false
+        while gui.Parent do
+            task.wait(0.3)
+            if A.collect then
+                pcall(function()
+                    local m = myRoot()
+                    if not m then return end
+                    if not firetouchinterest then
+                        if not warned then warned = true; notify("NEXORA", "Executor ไม่รองรับ firetouchinterest", 4, true) end
+                        return
+                    end
+                    for o in pairs(items) do
+                        if o.Parent then
+                            if (o.Position - m.Position).Magnitude <= 500 then
+                                firetouchinterest(m, o, 0); firetouchinterest(m, o, 1)
+                            end
+                        else
+                            items[o] = nil
+                        end
+                    end
+                end)
+            end
+        end
+    end)
+
+    -- ===== หมวดท่าทาง =====
+    Toggle(pd, "sit", false, function(v) local h = hum(); if h then h.Sit = v end end)
+    Toggle(pd, "freeze", false, function(v) local m = myRoot(); if m then m.Anchored = v end end)
+    Slider(pd, "hip", 0, 15, 2, function(v) local h = hum(); if h then h.HipHeight = v end end)
+    Toggle(pd, "noragdoll", false, function(v)
+        local h = hum()
+        if h then
+            h:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, not v)
+            h:SetStateEnabled(Enum.HumanoidStateType.FallingDown, not v)
+        end
+    end)
+
+    -- เล่นท่า (กดจากสคริปต์)
+    local curTrack
+    local function stopAnim()
+        if curTrack then pcall(function() curTrack:Stop(0.2) end); curTrack = nil end
+    end
+    local function playAnim(id, name)
+        local h = hum()
+        if not h then return end
+        local animator = h:FindFirstChildOfClass("Animator")
+        if not animator then animator = Instance.new("Animator"); animator.Parent = h end
+        stopAnim()
+        local a = Instance.new("Animation")
+        a.AnimationId = id
+        local ok, tr = pcall(function() return animator:LoadAnimation(a) end)
+        if not ok or not tr then notify("NEXORA", "โหลดท่าไม่สำเร็จ", 2, true); return end
+        tr.Priority = Enum.AnimationPriority.Action4
+        tr.Looped = true
+        tr:Play(0.2)
+        curTrack = tr
+        notify("NEXORA", name or id, 2, true)
+    end
+    connect(lp.CharacterAdded, function() curTrack = nil end)
+
+    local entries, query = {}, ""
+
+    -- ช่องค้นหา
+    local sb = Styled(pd, 54)
+    local tbS = new("TextBox", {Size = UDim2.new(1, -50, 1, 0), Position = UDim2.fromOffset(28, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 17, TextColor3 = TEXT, PlaceholderText = "🔎 ค้นหาท่า / Search", PlaceholderColor3 = SUB, Text = "", ClearTextOnFocus = false, TextXAlignment = Enum.TextXAlignment.Left, Parent = sb})
+
+    -- ช่องใส่ ID
+    local ib = Styled(pd, 54)
+    local tbI = new("TextBox", {Size = UDim2.new(1, -50, 1, 0), Position = UDim2.fromOffset(28, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 17, TextColor3 = TEXT, PlaceholderText = "🆔 ใส่ ID ท่า / Animation ID", PlaceholderColor3 = SUB, Text = "", ClearTextOnFocus = false, TextXAlignment = Enum.TextXAlignment.Left, Parent = ib})
+    Button(pd, "anim_id", function()
+        local n = tbI.Text:gsub("%D", "")
+        if n == "" then return end
+        playAnim("rbxassetid://" .. n, n)
+    end, "▶  ")
+    Button(pd, "anim_stop", stopAnim, "⏹  ")
+
+    local listF = new("Frame", {Size = UDim2.new(1, -6, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, Parent = pd})
+    new("UIListLayout", {Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder, Parent = listF})
+
+    local function rebuild()
+        for _, c in ipairs(listF:GetChildren()) do
+            if c:IsA("TextButton") then c:Destroy() end
+        end
+        local n = 0
+        for _, e in ipairs(entries) do
+            if query == "" or e.name:lower():find(query, 1, true) then
+                n += 1
+                if n > 40 then break end
+                local b = Styled(listF, 46, function() playAnim(e.id, e.name) end)
+                new("TextLabel", {Size = UDim2.new(1, -40, 1, 0), Position = UDim2.fromOffset(28, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, Text = "💃  " .. e.name, Parent = b})
+            end
+        end
+    end
+    local function scan(silent)
+        entries = {}
+        local seen = {}
+        local roots = {game:GetService("ReplicatedStorage"), game:GetService("ReplicatedFirst"), game:GetService("StarterPlayer"), lp:FindFirstChild("PlayerGui")}
+        for _, r in ipairs(roots) do
+            for _, d in ipairs(r:GetDescendants()) do
+                local id
+                if d:IsA("Animation") then
+                    id = d.AnimationId
+                elseif d:IsA("StringValue") and d.Value:find("^rbxassetid://%d+") then
+                    id = d.Value
+                end
+                if id and id ~= "" and not seen[id] then
+                    seen[id] = true
+                    entries[#entries+1] = {name = (d.Parent and d.Parent.Name or "") .. "/" .. d.Name, id = id}
+                end
+            end
+        end
+        table.sort(entries, function(a, b) return a.name < b.name end)
+        rebuild()
+        if not silent then notify("NEXORA", #entries .. " ท่า / anims", 2, true) end
+    end
+    connect(tbS:GetPropertyChangedSignal("Text"), function()
+        query = tbS.Text:lower()
+        rebuild()
+    end)
+    Button(pd, "anim_scan", function() scan(false) end, "🔄  ")
+    task.spawn(scan, true)
+
+    -- ===== ปุ่มดีบัก (หมวดออโต้) =====
+    Button(pages[3], "dbg", function()
+        local m = myRoot()
+        local best, bd
+        for _, p in ipairs(Players:GetPlayers()) do
+            local r = p ~= lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+            if r then
+                local d = m and (m.Position - r.Position).Magnitude or 0
+                if not bd or d < bd then best, bd = p, d end
+            end
+        end
+        if not best then notify("NEXORA", L("nobody"), 2, true); return end
+        local out = {best.DisplayName .. " downed=" .. tostring(isDowned(best))}
+        for k, v in pairs(best.Character:GetAttributes()) do out[#out+1] = "C." .. k .. "=" .. tostring(v) end
+        for k, v in pairs(best:GetAttributes()) do out[#out+1] = "P." .. k .. "=" .. tostring(v) end
+        for _, d in ipairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
+            if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") then
+                local n = d.Name:lower()
+                if n:find("revive", 1, true) or n:find("interact", 1, true) or n:find("down", 1, true)
+                    or n:find("rescue", 1, true) or n:find("carry", 1, true) then
+                    out[#out+1] = "R:" .. d:GetFullName()
+                end
+            end
+        end
+        local r = best.Character:FindFirstChild("HumanoidRootPart")
+        for _, d in ipairs(workspace:GetDescendants()) do
+            if r and d:IsA("ProximityPrompt") and d.Parent then
+                local par = d.Parent
+                local pos = par:IsA("BasePart") and par.Position or (par:IsA("Attachment") and par.WorldPosition)
+                if pos and (pos - r.Position).Magnitude <= 10 then
+                    out[#out+1] = "PP:" .. d.Name .. "/" .. d.ActionText
+                end
+            end
+        end
+        local s = table.concat(out, ", ")
+        print("[NEXORA]", s)
+        pcall(function() setclipboard(s) end)
+        notify("NEXORA", "downed=" .. tostring(isDowned(best)) .. " | " .. L("copied"), 4, true)
+    end, "🔍  ", 56)
+end-- ===== ส่วน 10/10 : หมวดตั้งค่า + โลโก้ลอย + ปิดสคริปต์ + เริ่มทำงาน =====
+
+local pulse, ringGrad
+local destroyAll
+
+do
+    local setP = AddTab(10, "🔧", "settings")
+
+    Toggle(setP, "sound", true, function(v) soundOn = v end)
+    Slider(setP, "volume", 0, 100, 60, function(v) soundVol = v / 100 end)
+    Toggle(setP, "notif", true, function(v) notifOn = v end)
+    Slider(setP, "guisize", 40, 140, math.floor(baseScale * 100), function(v, final)
+        if final then
+            baseScale = v / 100
+            if isOpen then tw(winScale, .25, {Scale = baseScale}, Enum.EasingStyle.Back) end
+        end
+    end)
+    Toggle(setP, "compact", isMobile, function(v)
+        baseScale = v and 0.58 or 1
+        if isOpen then tw(winScale, .25, {Scale = baseScale}, Enum.EasingStyle.Back) end
+    end)
+
+    local afk = true
+    Toggle(setP, "antiafk", true, function(v) afk = v end)
+    connect(lp.Idled, function()
+        if afk then
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end
+    end)
+
+    Button(setP, "resetchar", function() local h = hum(); if h then h.Health = 0 end end, "🔄  ")
+    Button(setP, "rejoin", function()
+        notify("NEXORA", L("rejoining"), 2)
+        task.delay(.4, function() pcall(function() TeleportService:Teleport(game.PlaceId, lp) end) end)
+    end, "🔁  ")
+    Button(setP, "copyjob", function()
+        local ok = pcall(function() setclipboard(tostring(game.JobId)) end)
+        notify("NEXORA", ok and L("copied") or L("copyfail"), 2)
+    end, "📋  ")
+
+    local hint = new("TextLabel", {Size = UDim2.new(1, -6, 0, 28), BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 16, TextColor3 = SUB, Text = "⌨️  " .. L("keybind"), Parent = setP})
+    track(hint, "keybind", "⌨️  ")
+    nonessential[#nonessential+1] = hint
+    local credit = new("TextLabel", {Size = UDim2.new(1, -6, 0, 30), BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 17, TextColor3 = RED, Text = "", Parent = setP})
+    Live(function() credit.Text = "🐱 " .. L("dev") .. ": " .. DEV_NAME .. "  |  " .. VERSION end)
+    nonessential[#nonessential+1] = credit
+
+    Button(setP, "destroy", function() destroyAll() end, "❌  ")
+end
+
+destroyAll = function()
+    for _, f in ipairs(restorers) do pcall(f) end
+    for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
+    gui:Destroy()
+end
+
+-- โลโก้แมวกลมลอย (ย่อแล้ว): แตะ = เปิด/ปิด GUI, ลาก = ย้าย
+local LOGO = 56
+local logo = new("Frame", {Size = UDim2.fromOffset(LOGO, LOGO), Position = UDim2.new(0, 18, .5, -LOGO / 2), BackgroundTransparency = 1, ZIndex = 50, Parent = gui})
+local logoScale = new("UIScale", {Parent = logo})
+pulse = new("Frame", {Size = UDim2.fromScale(1, 1), AnchorPoint = Vector2.new(.5, .5), Position = UDim2.fromScale(.5, .5), BackgroundColor3 = RED, BackgroundTransparency = .55, ZIndex = 50, Parent = logo})
+corner(pulse, 999)
+nonessential[#nonessential+1] = pulse
+local disc = new("Frame", {Size = UDim2.new(1, -6, 1, -6), Position = UDim2.fromOffset(3, 3), BackgroundColor3 = Color3.new(1, 1, 1), ZIndex = 51, Parent = logo})
+corner(disc, 999)
+new("UIGradient", {Color = ColorSequence.new(Color3.fromRGB(70, 8, 16), Color3.fromRGB(10, 10, 13)), Rotation = 90, Parent = disc})
+local ring = new("UIStroke", {Thickness = 2.5, Color = Color3.new(1, 1, 1), ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = disc})
+ringGrad = new("UIGradient", {Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, RED), ColorSequenceKeypoint.new(.5, Color3.fromRGB(50, 0, 6)), ColorSequenceKeypoint.new(1, RED),
+}), Parent = ring})
+CatLogo(disc, 32, UDim2.fromScale(.5, .5), Vector2.new(.5, .5))
+local hit = new("TextButton", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "", ZIndex = 60, Parent = logo})
+
+task.spawn(function()
+    while logo.Parent do
+        if pulse.Visible and not reduceAnim then
+            pulse.Size = UDim2.fromScale(1, 1); pulse.BackgroundTransparency = .55
+            tw(pulse, 1.4, {Size = UDim2.fromScale(1.55, 1.55), BackgroundTransparency = 1})
+        end
+        task.wait(1.6)
+    end
+end)
+
+do
+    local dragging, moved, startMouse, startPos = false, false, nil, nil
+    connect(hit.InputBegan, function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging, moved, startMouse, startPos = true, false, i.Position, logo.Position
+            tw(logoScale, .1, {Scale = 0.9})
+        end
+    end)
+    connect(UIS.InputChanged, function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            local d = i.Position - startMouse
+            if d.Magnitude > 6 then moved = true end
+            if moved then
+                local vp = gui.AbsoluteSize
+                local x = math.clamp(startPos.X.Offset + d.X, 0, vp.X - LOGO)
+                local y = math.clamp(startPos.Y.Offset + d.Y + vp.Y * startPos.Y.Scale, 0, vp.Y - LOGO)
+                logo.Position = UDim2.fromOffset(x, y)
+            end
+        end
+    end)
+    connect(UIS.InputEnded, function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then
+            dragging = false
+            tw(logoScale, .15, {Scale = 1}, Enum.EasingStyle.Back)
+            if not moved then
+                click()
+                if isOpen then hideWin() else showWin() end
+            end
+        end
+    end)
+end
+
+connect(UIS.InputBegan, function(i, gp)
+    if not gp and i.KeyCode == Enum.KeyCode.RightShift then
+        if isOpen then hideWin() else showWin() end
+    end
+end)
+
+connect(btnMin.MouseButton1Click, function() click(); hideWin() end)
+connect(btnClose.MouseButton1Click, function()
+    click()
+    tw(winScale, .3, {Scale = 0.01}, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+    task.delay(.32, destroyAll)
+end)
+
+task.spawn(function()
+    while gui.Parent do
+        for _, f in ipairs(live) do pcall(f) end
+        task.wait(.5)
+    end
+end)
+task.spawn(function()
+    local t = 0
+    while gui.Parent do
+        t += 0.06
+        local a = 0.2 + 0.25 * (math.sin(t * 2) * 0.5 + 0.5)
+        for i = #glows, 1, -1 do
+            local s = glows[i]
+            if s.Parent then s.Transparency = a else table.remove(glows, i) end
+        end
+        ringGrad.Rotation = (tick() * 160) % 360
+        task.wait(0.03)
+    end
+end)
+
+task.spawn(function()
+    LoadingWindow()
+    Select(1)
+    showWin()
+    notify("NEXORA", L("welcome"), 3, true)
+end)
