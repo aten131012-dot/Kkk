@@ -37,17 +37,37 @@ local function make(c,p,par)
 end
 local function round(o,r) return make("UICorner",{CornerRadius=UDim.new(0,r)},o) end
 
--- โหลดรูปจากไอดี (ลอง rbxthumb ก่อน แล้วค่อย rbxassetid)
+-- โหลดรูปจากไอดี: แข่งโหลดหลายแหล่งพร้อมกัน ใครเสร็จก่อนใช้อันนั้น (เร็วขึ้นมาก)
+local CP=game:GetService("ContentProvider")
+local imgCache={}
+local function resolveImg(id)
+ if imgCache[id] then return imgCache[id] end
+ local c={}
+ imgCache[id]=c
+ for _,u in ipairs({"rbxassetid://"..id,"rbxthumb://type=Asset&id="..id.."&w=420&h=420"}) do
+  task.spawn(function()
+   local p=Instance.new("ImageLabel")
+   p.Image=u
+   pcall(function() CP:PreloadAsync({p}) end)
+   if not c.url and p.IsLoaded then c.url=u end
+   p:Destroy()
+  end)
+ end
+ return c
+end
 local function setImg(o,id)
+ local c=resolveImg(id)
+ o.Image=c.url or ("rbxassetid://"..id)
+ if c.url then return end
  task.spawn(function()
-  for _,s in ipairs({"rbxthumb://type=Asset&id="..id.."&w=420&h=420","rbxassetid://"..id}) do
-   o.Image=s
-   local t=0
-   while not o.IsLoaded and t<4 do task.wait(.1) t+=.1 end
-   if o.IsLoaded then return end
-  end
+  local t=0
+  while not c.url and t<8 do task.wait(.05) t+=.05 end
+  if c.url then o.Image=c.url end
  end)
 end
+-- เริ่มโหลดรูปทันทีตั้งแต่บรรทัดแรก ก่อนสร้าง GUI
+resolveImg(CFG.LOGO_ID)
+resolveImg(CFG.DISCORD_ICON_ID)
 
 -- ระบบเปลี่ยนสีธีม
 local accents={}
@@ -81,10 +101,15 @@ local Loader={ready=false,done=false}
 function Loader.finish(cb) Loader.cb=cb Loader.ready=true end
 do
  local TH=(savedLang=="TH")
+ local cam=workspace.CurrentCamera
+ local vp=cam and cam.ViewportSize or Vector2.new(800,500)
+ local kk=math.clamp(math.min(vp.X/820,vp.Y/520),.6,1.15)
+ local CY=.42
  local ld=make("ScreenGui",{Name="NexoraLoading",ResetOnSpawn=false,IgnoreGuiInset=true,DisplayOrder=999999,ZIndexBehavior=Enum.ZIndexBehavior.Sibling},parent)
- local root=make("CanvasGroup",{Size=UDim2.fromScale(1,1),BackgroundTransparency=1,BorderSizePixel=0},ld)
+ pcall(function() ld.ScreenInsets=Enum.ScreenInsets.None end)
+ local root=make("CanvasGroup",{Position=UDim2.fromScale(0,0),Size=UDim2.fromScale(1,1),BackgroundTransparency=1,BorderSizePixel=0},ld)
  local bgl=make("Frame",{Size=UDim2.fromScale(1,1),BackgroundColor3=Color3.new(1,1,1),BorderSizePixel=0,Active=true},root)
- make("UIGradient",{Color=ColorSequence.new(Color3.fromRGB(28,14,62),Color3.fromRGB(4,3,12)),Rotation=90},bgl)
+ make("UIGradient",{Color=ColorSequence.new(Color3.fromRGB(30,14,66),Color3.fromRGB(3,2,10)),Rotation=90},bgl)
 
  -- เนบิวลา
  local function neb(x,y,s,col,dx,dy,t)
@@ -96,26 +121,57 @@ do
   end
   TS:Create(h,TweenInfo.new(t,SINE,IO,-1,true),{Position=UDim2.fromScale(x+dx,y+dy)}):Play()
  end
- neb(.2,.25,420,Color3.fromRGB(110,50,210),.06,.08,8)
- neb(.8,.75,460,Color3.fromRGB(40,80,220),-.07,-.06,10)
- neb(.7,.15,300,Color3.fromRGB(220,70,190),-.05,.08,7)
+ neb(.2,.25,520,Color3.fromRGB(110,50,210),.06,.08,8)
+ neb(.8,.75,560,Color3.fromRGB(40,80,220),-.07,-.06,10)
+ neb(.75,.15,380,Color3.fromRGB(220,70,190),-.05,.08,7)
 
  -- ดาว
- for i=1,70 do
+ for i=1,90 do
   local sz=math.random(1,3)
   local s=make("Frame",{Position=UDim2.fromScale(math.random(),math.random()),Size=UDim2.fromOffset(sz,sz),BackgroundColor3=(math.random()<.3) and COL.Pink or Color3.new(1,1,1),BackgroundTransparency=math.random(30,70)/100,BorderSizePixel=0},root)
   make("UICorner",{CornerRadius=UDim.new(.5,0)},s)
   TS:Create(s,TweenInfo.new(math.random(8,25)/10,SINE,IO,-1,true),{BackgroundTransparency=.95}):Play()
  end
 
+ -- ลำแสงหมุนด้านหลัง
+ local rayHold=make("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,CY),Size=UDim2.fromOffset(10,10),BackgroundTransparency=1},root)
+ for i=1,12 do
+  local r=make("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset((i%2==0) and 3 or 2,1800),BackgroundColor3=(i%2==0) and COL.Pink or COL.Purple,BorderSizePixel=0,Rotation=i*15},rayHold)
+  make("UIGradient",{Rotation=90,Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(.5,.8),NumberSequenceKeypoint.new(1,1)})},r)
+ end
+ TS:Create(rayHold,TweenInfo.new(20,LIN,Enum.EasingDirection.In,-1),{Rotation=360}):Play()
+
+ -- อนุภาคลอยขึ้น
+ task.spawn(function()
+  while ld.Parent do
+   local sz=math.random(2,4)
+   local x=math.random()
+   local p=make("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.new(x,0,1,10),Size=UDim2.fromOffset(sz,sz),BackgroundColor3=(math.random()<.5) and COL.Pink or Color3.new(1,1,1),BackgroundTransparency=.3,BorderSizePixel=0},root)
+   make("UICorner",{CornerRadius=UDim.new(.5,0)},p)
+   local dur=math.random(30,60)/10
+   TS:Create(p,TweenInfo.new(dur,LIN),{Position=UDim2.new(math.clamp(x+(math.random()-.5)*.1,0,1),0,-.05,0),BackgroundTransparency=1}):Play()
+   task.delay(dur+.1,function() p:Destroy() end)
+   task.wait(.1)
+  end
+ end)
+
+ -- มุมกรอบ HUD
+ local function bracket(ax,ay)
+  local f=make("Frame",{AnchorPoint=Vector2.new(ax,ay),Position=UDim2.new(ax,(ax==0) and 20 or -20,ay,(ay==0) and 20 or -20),Size=UDim2.fromOffset(34,34),BackgroundTransparency=1,ZIndex=3},root)
+  make("Frame",{AnchorPoint=Vector2.new(ax,ay),Position=UDim2.fromScale(ax,ay),Size=UDim2.new(1,0,0,2),BackgroundColor3=COL.Pink,BorderSizePixel=0},f)
+  make("Frame",{AnchorPoint=Vector2.new(ax,ay),Position=UDim2.fromScale(ax,ay),Size=UDim2.new(0,2,1,0),BackgroundColor3=COL.Pink,BorderSizePixel=0},f)
+  TS:Create(f,TweenInfo.new(1.2,SINE,IO,-1,true),{BackgroundTransparency=1}):Play()
+ end
+ bracket(0,0) bracket(1,0) bracket(0,1) bracket(1,1)
+
  -- กลุ่มกลาง
- local ctr=make("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.44),Size=UDim2.fromOffset(300,300),BackgroundTransparency=1},root)
- local csc=make("UIScale",{Scale=1},ctr)
+ local ctr=make("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,CY),Size=UDim2.fromOffset(340,340),BackgroundTransparency=1,ZIndex=5},root)
+ local csc=make("UIScale",{Scale=kk},ctr)
  for i=1,4 do
-  local sz=130+i*34
+  local sz=150+i*38
   local h=make("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(sz,sz),BackgroundColor3=(i%2==0) and COL.Pink or COL.Purple,BackgroundTransparency=.9},ctr)
   make("UICorner",{CornerRadius=UDim.new(.5,0)},h)
-  TS:Create(h,TweenInfo.new(1.4+i*.25,SINE,IO,-1,true),{Size=UDim2.fromOffset(sz+26,sz+26),BackgroundTransparency=.96}):Play()
+  TS:Create(h,TweenInfo.new(1.4+i*.25,SINE,IO,-1,true),{Size=UDim2.fromOffset(sz+30,sz+30),BackgroundTransparency=.96}):Play()
  end
  local function ring(sz,th,c1,c2,speed,rev)
   local r=make("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(sz,sz),BackgroundTransparency=1},ctr)
@@ -124,9 +180,9 @@ do
   local g=make("UIGradient",{Color=ColorSequence.new(c1,c2),Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(.5,.15),NumberSequenceKeypoint.new(.62,1),NumberSequenceKeypoint.new(1,1)})},s)
   TS:Create(g,TweenInfo.new(speed,LIN,Enum.EasingDirection.In,-1),{Rotation=rev and -360 or 360}):Play()
  end
- ring(150,4,COL.Pink,COL.Purple,1.6,false)
- ring(184,2,Color3.fromRGB(110,220,255),COL.Purple,2.6,true)
- ring(216,1.5,COL.Purple,COL.Pink,4,false)
+ ring(170,4,COL.Pink,COL.Purple,1.5,false)
+ ring(208,2.5,Color3.fromRGB(110,220,255),COL.Purple,2.4,true)
+ ring(250,1.5,COL.Purple,COL.Pink,4,false)
 
  -- จุดโคจร
  local dots={}
@@ -140,19 +196,19 @@ do
   local t=os.clock()
   for i,d in ipairs(dots) do
    local a=t*(.9+(i%3)*.35)*((i%2==0) and 1 or -1)+i*(math.pi*2/8)
-   local r=96+math.sin(t*1.5+i)*8
+   local r=130+math.sin(t*1.5+i)*8
    d.Position=UDim2.new(.5,math.cos(a)*r,.5,math.sin(a)*r)
   end
  end)
 
  -- โลโก้กลาง
- local lgo=make("ImageLabel",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(104,104),BackgroundColor3=COL.Side,BackgroundTransparency=0},ctr)
- round(lgo,52)
- make("UIStroke",{Color=Color3.new(1,1,1),Thickness=1.5,Transparency=.6},lgo)
+ local lgo=make("ImageLabel",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(128,128),BackgroundColor3=COL.Side},ctr)
+ round(lgo,64)
+ make("UIStroke",{Color=Color3.new(1,1,1),Thickness=2,Transparency=.5},lgo)
  setImg(lgo,CFG.LOGO_ID)
  local ls=make("UIScale",{Scale=0},lgo)
- TS:Create(ls,TweenInfo.new(.7,Enum.EasingStyle.Back),{Scale=1}):Play()
- task.delay(.8,function()
+ TS:Create(ls,TweenInfo.new(.8,Enum.EasingStyle.Back),{Scale=1}):Play()
+ task.delay(.9,function()
   if ld.Parent then TS:Create(ls,TweenInfo.new(1.1,SINE,IO,-1,true),{Scale=1.07}):Play() end
  end)
 
@@ -160,30 +216,49 @@ do
  task.spawn(function()
   task.wait(.5)
   while ld.Parent do
-   local r=make("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(104,104),BackgroundTransparency=1},ctr)
+   local r=make("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(128,128),BackgroundTransparency=1},ctr)
    make("UICorner",{CornerRadius=UDim.new(.5,0)},r)
    local s=make("UIStroke",{Color=COL.Pink,Thickness=2,Transparency=.2},r)
-   TS:Create(r,TweenInfo.new(1.8,Enum.EasingStyle.Quint),{Size=UDim2.fromOffset(280,280)}):Play()
+   TS:Create(r,TweenInfo.new(1.8,Enum.EasingStyle.Quint),{Size=UDim2.fromOffset(330,330)}):Play()
    TS:Create(s,TweenInfo.new(1.8),{Transparency=1}):Play()
    task.delay(1.9,function() r:Destroy() end)
    task.wait(.9)
   end
  end)
+ local function shock()
+  local r=make("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(128,128),BackgroundTransparency=1},ctr)
+  make("UICorner",{CornerRadius=UDim.new(.5,0)},r)
+  local s=make("UIStroke",{Color=Color3.new(1,1,1),Thickness=4},r)
+  TS:Create(r,TweenInfo.new(.7,Enum.EasingStyle.Quint),{Size=UDim2.fromOffset(1800,1800)}):Play()
+  TS:Create(s,TweenInfo.new(.7),{Transparency=1}):Play()
+ end
 
  -- ชื่อ + แถบโหลด
- local bot=make("Frame",{AnchorPoint=Vector2.new(.5,0),Position=UDim2.new(.5,0,.44,122),Size=UDim2.fromOffset(280,64),BackgroundTransparency=1},root)
- local ttl=make("TextLabel",{Size=UDim2.new(1,0,0,24),BackgroundTransparency=1,Text=CFG.NAME,Font=Enum.Font.GothamBlack,TextSize=22,TextColor3=Color3.new(1,1,1)},bot)
+ local bot=make("Frame",{AnchorPoint=Vector2.new(.5,0),Position=UDim2.new(.5,0,CY,math.floor(168*kk)),Size=UDim2.fromOffset(340,90),BackgroundTransparency=1,ZIndex=5},root)
+ make("UIScale",{Scale=kk},bot)
+ local spaced=(CFG.NAME:gsub("(.)","%1 "))
+ local ttl=make("TextLabel",{Size=UDim2.new(1,0,0,30),BackgroundTransparency=1,Text=spaced,MaxVisibleGraphemes=0,Font=Enum.Font.GothamBlack,TextSize=26,TextColor3=Color3.new(1,1,1)},bot)
  local tg=make("UIGradient",{Color=ColorSequence.new({ColorSequenceKeypoint.new(0,COL.Purple),ColorSequenceKeypoint.new(.5,Color3.new(1,1,1)),ColorSequenceKeypoint.new(1,COL.Pink)}),Offset=Vector2.new(-1,0)},ttl)
  TS:Create(tg,TweenInfo.new(1.6,LIN,Enum.EasingDirection.In,-1),{Offset=Vector2.new(1,0)}):Play()
- local barBg=make("Frame",{Position=UDim2.fromOffset(0,32),Size=UDim2.new(1,0,0,6),BackgroundColor3=COL.Chip,BorderSizePixel=0},bot)
- round(barBg,3)
+ task.spawn(function()
+  for i=0,#spaced do
+   if not ld.Parent then return end
+   ttl.MaxVisibleGraphemes=i
+   task.wait(.07)
+  end
+ end)
+ local barBg=make("Frame",{Position=UDim2.fromOffset(0,42),Size=UDim2.new(1,0,0,8),BackgroundColor3=COL.Chip,BorderSizePixel=0},bot)
+ round(barBg,4)
+ make("UIStroke",{Color=COL.Pink,Thickness=1,Transparency=.6},barBg)
  local barFill=make("Frame",{Size=UDim2.fromScale(0,1),BackgroundColor3=Color3.new(1,1,1),BorderSizePixel=0,ClipsDescendants=true},barBg)
- round(barFill,3)
+ round(barFill,4)
  make("UIGradient",{Color=ColorSequence.new(COL.Purple,COL.Pink)},barFill)
- local bsh=make("Frame",{Size=UDim2.fromScale(.3,1),Position=UDim2.fromScale(-.4,0),BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=.6,BorderSizePixel=0},barFill)
- TS:Create(bsh,TweenInfo.new(1,Enum.EasingStyle.Quad,Enum.EasingDirection.InOut,-1),{Position=UDim2.fromScale(1.2,0)}):Play()
- local st=make("TextLabel",{Position=UDim2.fromOffset(0,44),Size=UDim2.new(1,-50,0,14),BackgroundTransparency=1,Text="",Font=Enum.Font.Gotham,TextSize=11,TextColor3=COL.Sub,TextXAlignment=Enum.TextXAlignment.Left},bot)
- local pc=make("TextLabel",{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,44),Size=UDim2.fromOffset(46,14),BackgroundTransparency=1,Text="0%",Font=Enum.Font.GothamBold,TextSize=11,TextColor3=COL.Pink,TextXAlignment=Enum.TextXAlignment.Right},bot)
+ local bsh=make("Frame",{Size=UDim2.fromScale(.3,1),Position=UDim2.fromScale(-.4,0),BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=.55,BorderSizePixel=0},barFill)
+ TS:Create(bsh,TweenInfo.new(1,Enum.EasingStyle.Quad,IO,-1),{Position=UDim2.fromScale(1.2,0)}):Play()
+ local st=make("TextLabel",{Position=UDim2.fromOffset(0,56),Size=UDim2.new(1,-60,0,14),BackgroundTransparency=1,Text="",Font=Enum.Font.Gotham,TextSize=11,TextColor3=COL.Sub,TextXAlignment=Enum.TextXAlignment.Left},bot)
+ local pc=make("TextLabel",{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,56),Size=UDim2.fromOffset(56,14),BackgroundTransparency=1,Text="0%",Font=Enum.Font.GothamBold,TextSize=12,TextColor3=COL.Pink,TextXAlignment=Enum.TextXAlignment.Right},bot)
+
+ local flash=make("Frame",{Size=UDim2.fromScale(1,1),BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=1,BorderSizePixel=0,ZIndex=20},root)
 
  local texts=TH and {"กำลังเริ่มระบบ...","กำลังโหลดทรัพยากร...","กำลังสร้างหน้าต่าง...","กำลังเชื่อมต่อ...","ใกล้เสร็จแล้ว..."} or {"Initializing...","Loading assets...","Building interface...","Connecting services...","Almost ready..."}
  task.spawn(function()
@@ -192,8 +267,8 @@ do
   while ld.Parent do
    local dt=RS.RenderStepped:Wait()
    local el=os.clock()-t0
-   local goal=math.min(el/2.8,1)*92
-   if (Loader.ready and el>=2.8) or el>25 then goal=100 end
+   local goal=math.min(el/3,1)*92
+   if (Loader.ready and el>=3) or el>25 then goal=100 end
    cur+=(goal-cur)*math.min(dt*5,1)
    if goal==100 and cur>99.5 then cur=100 end
    barFill.Size=UDim2.fromScale(cur/100,1)
@@ -202,11 +277,15 @@ do
    if cur>=100 then break end
   end
   st.Text=TH and "พร้อมแล้ว ✔" or "Ready ✔"
-  task.wait(.4)
+  task.wait(.35)
   Loader.done=true
-  TS:Create(csc,TweenInfo.new(.7,Enum.EasingStyle.Back,Enum.EasingDirection.In),{Scale=1.5}):Play()
-  TS:Create(root,TweenInfo.new(.7,Enum.EasingStyle.Quad),{GroupTransparency=1}):Play()
-  task.wait(.75)
+  shock()
+  TS:Create(flash,TweenInfo.new(.15),{BackgroundTransparency=.6}):Play()
+  TS:Create(csc,TweenInfo.new(.7,Enum.EasingStyle.Back,Enum.EasingDirection.In),{Scale=kk*1.6}):Play()
+  task.wait(.15)
+  TS:Create(flash,TweenInfo.new(.5),{BackgroundTransparency=1}):Play()
+  TS:Create(root,TweenInfo.new(.6,Enum.EasingStyle.Quad),{GroupTransparency=1}):Play()
+  task.wait(.7)
   orb:Disconnect()
   ld:Destroy()
   if Loader.cb then task.spawn(Loader.cb) end
@@ -377,7 +456,7 @@ end
 section("MAIN","หลัก")
 addPage("home","⌂","HOME","HOME")
 section("SYSTEM","ระบบ")
-addPage("settings","⚙","SETTINGS","SETTINGS")
+addPage("settings","☼","SETTINGS","SETTINGS")
 selectPage("home")
 
 -- ===== โลโก้ลอย + เอฟเฟกต์ =====
@@ -388,34 +467,22 @@ setImg(logo,CFG.LOGO_ID)
 TS:Create(make("UIScale",{},logo),TweenInfo.new(1.8,SINE,IO,-1,true),{Scale=1.06}):Play()
 
 local fxOn=true
--- แสงวิบผ่านโลโก้
-local lclip=make("Frame",{Size=UDim2.fromScale(1,1),BackgroundTransparency=1,ClipsDescendants=true,ZIndex=2},logo)
-round(lclip,26)
-local lsh=make("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.new(-.4,0,.5,0),Size=UDim2.new(.25,0,2,0),Rotation=20,BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=.7,BorderSizePixel=0},lclip)
-TS:Create(lsh,TweenInfo.new(1.1,Enum.EasingStyle.Quad,IO,-1,false,1.6),{Position=UDim2.new(1.4,0,.5,0)}):Play()
--- จุดโคจรรอบโลโก้
-local orbDots={}
-for i=1,4 do
- local sz=(i%2==0) and 5 or 3
- local d=make("Frame",{AnchorPoint=Vector2.new(.5,.5),Size=UDim2.fromOffset(sz,sz),BackgroundColor3=(i%2==0) and COL.Pink or Color3.new(1,1,1),BorderSizePixel=0,ZIndex=3},logo)
- make("UICorner",{CornerRadius=UDim.new(.5,0)},d)
- orbDots[i]=d
+local fxObjs={}
+-- วงแหวนนีออนหมุนรอบโลโก้ (เห็นชัด เข้าใจง่าย)
+local function fxRing(extra,th,speed,rev)
+ local r=make("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.new(1,extra,1,extra),BackgroundTransparency=1},logo)
+ make("UICorner",{CornerRadius=UDim.new(.5,0)},r)
+ local s=make("UIStroke",{Thickness=th,Color=Color3.new(1,1,1)},r)
+ local g=make("UIGradient",{Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(.45,.1),NumberSequenceKeypoint.new(.6,1),NumberSequenceKeypoint.new(1,1)})},s)
+ onAccent(function(a,b) g.Color=ColorSequence.new(b,a) end)
+ TS:Create(g,TweenInfo.new(speed,LIN,Enum.EasingDirection.In,-1),{Rotation=rev and -360 or 360}):Play()
+ fxObjs[#fxObjs+1]=r
 end
-onAccent(function(a,b) for i,d in ipairs(orbDots) do if i%2==0 then d.BackgroundColor3=b end end end)
-local orbConn=RS.RenderStepped:Connect(function()
- if not fxOn then return end
- local t=os.clock()
- for i,d in ipairs(orbDots) do
-  local a=t*1.6+i*(math.pi/2)
-  local r=40+math.sin(t*2+i)*3
-  d.Position=UDim2.new(.5,math.cos(a)*r,.5,math.sin(a)*r)
- end
-end)
-gui.Destroying:Connect(function() orbConn:Disconnect() end)
+fxRing(12,3,1.4,false)
+fxRing(26,2,2.2,true)
 local function setLogoFx(v)
  fxOn=v
- for _,d in ipairs(orbDots) do d.Visible=v end
- lsh.Visible=v
+ for _,r in ipairs(fxObjs) do r.Visible=v end
 end
 logo.MouseEnter:Connect(function() TS:Create(logo,TweenInfo.new(.2,Enum.EasingStyle.Back),{Size=UDim2.fromOffset(LS+8,LS+8)}):Play() end)
 logo.MouseLeave:Connect(function() TS:Create(logo,TweenInfo.new(.2,Enum.EasingStyle.Back),{Size=UDim2.fromOffset(LS,LS)}):Play() end)
@@ -424,7 +491,7 @@ local function ripple()
  local r=make("Frame",{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromScale(1,1),BackgroundTransparency=1},logo)
  make("UICorner",{CornerRadius=UDim.new(.5,0)},r)
  local s=make("UIStroke",{Color=COL.Pink,Thickness=1.5,Transparency=.2},r)
- TS:Create(r,TweenInfo.new(1.4,Enum.EasingStyle.Quint),{Size=UDim2.fromScale(2,2)}):Play()
+ TS:Create(r,TweenInfo.new(1.4,Enum.EasingStyle.Quint),{Size=UDim2.fromScale(2.4,2.4)}):Play()
  TS:Create(s,TweenInfo.new(1.4),{Transparency=1}):Play()
  task.delay(1.5,function() r:Destroy() end)
 end
